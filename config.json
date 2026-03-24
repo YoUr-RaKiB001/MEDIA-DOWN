@@ -1,0 +1,6 @@
+{
+  "apiUrl": "https://nayan-video-downloader.vercel.app/alldown",
+  "apiKey": "API-R07-XXXXXXXXXXXX",
+  "failoverUrl": "https://api-backup.vortex-downloader.com/v1",
+  "autoFailover": true
+}
