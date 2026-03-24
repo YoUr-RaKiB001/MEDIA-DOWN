@@ -16,7 +16,7 @@ function getConfig() {
   }
   return {
     apiUrl: "https://nayan-video-downloader.vercel.app/alldown",
-    apiKey: "API-R07-XXXXXXXXXXXX",
+    apiKey: "",
     failoverUrl: "https://api-backup.vortex-downloader.com/v1",
     autoFailover: true
   };
@@ -62,32 +62,9 @@ async function startServer() {
     const config = getConfig();
     const videoUrl = url as string;
     
-    // Determine which endpoint to use based on the URL
-    let finalApiUrl = config.apiUrl;
-    const baseUrl = config.apiUrl.split("/alldown")[0];
-    
-    if (videoUrl.includes("instagram.com") || videoUrl.includes("instagr.am")) {
-      finalApiUrl = `${baseUrl}/instagram`;
-    } else if (videoUrl.includes("youtube.com") || videoUrl.includes("youtu.be")) {
-      finalApiUrl = `${baseUrl}/youtube`;
-    } else if (videoUrl.includes("tiktok.com")) {
-      finalApiUrl = `${baseUrl}/tiktok`;
-    } else if (videoUrl.includes("facebook.com") || videoUrl.includes("fb.watch")) {
-      finalApiUrl = `${baseUrl}/facebook`;
-    } else if (videoUrl.includes("twitter.com") || videoUrl.includes("x.com")) {
-      finalApiUrl = `${baseUrl}/twitter`;
-    } else if (videoUrl.includes("pinterest.com") || videoUrl.includes("pin.it")) {
-      finalApiUrl = `${baseUrl}/pinterest`;
-    } else if (videoUrl.includes("snapchat.com")) {
-      finalApiUrl = `${baseUrl}/snapchat`;
-    }
-
     const tryFetch = async (apiUrl: string) => {
-      // Add API key if present in config
-      const separator = apiUrl.includes("?") ? "&" : "?";
-      const requestUrl = `${apiUrl}${separator}url=${encodeURIComponent(videoUrl)}${config.apiKey ? `&key=${config.apiKey}` : ""}`;
-      
-      console.log(`Fetching from API: ${requestUrl.replace(config.apiKey, "HIDDEN")}`);
+      const requestUrl = `${apiUrl}?url=${encodeURIComponent(videoUrl)}`;
+      console.log(`Fetching from API: ${requestUrl}`);
       
       const response = await axios.get(requestUrl, {
         headers: {
@@ -100,34 +77,9 @@ async function startServer() {
     };
 
     try {
-      let apiData: any;
-      try {
-        apiData = await tryFetch(finalApiUrl);
-      } catch (e: any) {
-        console.error(`Error fetching from ${finalApiUrl}:`, e.message);
-        // If specific endpoint fails, try alldown fallback
-        if (finalApiUrl !== config.apiUrl) {
-          console.log("Trying alldown fallback due to error...");
-          apiData = await tryFetch(config.apiUrl);
-        } else {
-          throw e;
-        }
-      }
-
+      // Always use the base alldown endpoint as requested
+      const apiData = await tryFetch(config.apiUrl);
       console.log("API Response Status:", apiData?.status);
-
-      // If specific endpoint returned non-200, try alldown fallback
-      if (apiData && apiData.status !== 200 && apiData.status !== "200" && finalApiUrl !== config.apiUrl) {
-        console.log("Trying alldown fallback due to non-200 status...");
-        try {
-          const fallbackData = await tryFetch(config.apiUrl);
-          if (fallbackData && (fallbackData.status === 200 || fallbackData.status === "200")) {
-            apiData = fallbackData;
-          }
-        } catch (e) {
-          console.error("Fallback failed");
-        }
-      }
 
       const isSuccess = apiData && (
         apiData.status === 200 || 
@@ -159,11 +111,7 @@ async function startServer() {
         if (videoData && videoData.data && typeof videoData.data === 'object' && !Array.isArray(videoData.data)) {
           // Check if the middle layer has a status: false
           if (videoData.status === false || videoData.status === "false") {
-            const msg = videoData.message || "Video not found or link is private.";
-            if (msg.toLowerCase().includes("key") || msg.toLowerCase().includes("api")) {
-              return res.status(401).json({ error: "Invalid API Key. Please update your API key in the admin panel." });
-            }
-            return res.status(404).json({ error: msg });
+            return res.status(404).json({ error: videoData.message || "Video not found or link is private." });
           }
           videoData = videoData.data;
         }
@@ -251,9 +199,6 @@ async function startServer() {
 
         if (formats.length === 0) {
           console.error("No download formats found in API response", JSON.stringify(apiData).substring(0, 500));
-          if (config.apiKey === "API-R07-XXXXXXXXXXXX") {
-            return res.status(401).json({ error: "Invalid API Key. Please update your API key in the admin panel." });
-          }
           return res.status(404).json({ error: "No downloadable formats found for this video." });
         }
 
@@ -284,12 +229,6 @@ async function startServer() {
       if (error.response) {
         console.error("API Error Response Status:", error.response.status);
         console.error("API Error Response Data:", error.response.data);
-        
-        const errorData = error.response.data;
-        if (error.response.status === 401 || error.response.status === 403 || 
-            (errorData && (errorData.message?.toLowerCase().includes("key") || errorData.message?.toLowerCase().includes("api")))) {
-          return res.status(401).json({ error: "Invalid API Key. Please update your API key in the admin panel." });
-        }
       }
       return res.status(500).json({ error: "Failed to fetch video data from the server." });
     }
