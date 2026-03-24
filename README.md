@@ -1,20 +1,107 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
-</div>
+# 🌪️ Vortex Video Downloader
 
-# Run and deploy your AI Studio app
+Vortex is a powerful, high-performance video downloader and analyzer built with **React**, **Express**, and **Firebase**. It features a modern, sleek interface and a robust admin dashboard for managing API configurations in real-time.
 
-This contains everything you need to run your app locally.
+---
 
-View your app in AI Studio: https://ai.studio/apps/befabe9b-b353-4861-83be-4e48d9f3e2e1
+## ✨ Features
 
-## Run Locally
+- **🚀 High-Speed Analysis:** Instantly analyze and fetch download links for videos from various platforms.
+- **🛡️ Admin Dashboard:** Real-time configuration of API endpoints, failover settings, and system monitoring.
+- **🔐 Secure Authentication:** Multi-method login (Google & Email/Password) powered by Firebase Auth.
+- **☁️ Cloud-Native:** Fully compatible with **Vercel** and **Cloud Run** for seamless deployment.
+- **💾 Firestore Integration:** Persistent settings and configuration that stay safe even after server restarts.
+- **🎨 Modern UI/UX:** Built with Tailwind CSS, Lucide Icons, and Framer Motion for a premium feel.
 
-**Prerequisites:**  Node.js
+---
 
+## 🛠️ Tech Stack
 
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+- **Frontend:** React 18, Vite, Tailwind CSS, Framer Motion, Lucide Icons.
+- **Backend:** Node.js, Express, Axios, Firebase Admin SDK.
+- **Database:** Firebase Firestore (for global settings).
+- **Authentication:** Firebase Auth (Google & Email/Password).
+- **Deployment:** Vercel (Serverless Functions) / Cloud Run.
+
+---
+
+## 🚀 Getting Started
+
+### 1. Prerequisites
+
+- Node.js (v18 or higher)
+- A Firebase Project
+
+### 2. Installation
+
+```bash
+# Clone the repository
+git clone https://github.com/your-username/vortex-downloader.git
+
+# Navigate to the project directory
+cd vortex-downloader
+
+# Install dependencies
+npm install
+```
+
+### 3. Environment Configuration
+
+Create a `firebase-applet-config.json` in the root directory with your Firebase credentials:
+
+```json
+{
+  "projectId": "YOUR_PROJECT_ID",
+  "appId": "YOUR_APP_ID",
+  "apiKey": "YOUR_API_KEY",
+  "authDomain": "YOUR_AUTH_DOMAIN",
+  "firestoreDatabaseId": "YOUR_DATABASE_ID"
+}
+```
+
+### 4. Running Locally
+
+```bash
+# Start the development server
+npm run dev
+```
+
+The app will be available at `http://localhost:3000`.
+
+---
+
+## 🌐 Deployment
+
+### Vercel (Recommended)
+
+1. Connect your GitHub repository to Vercel.
+2. Vercel will automatically detect the project settings.
+3. Click **Deploy**.
+
+### Cloud Run
+
+The project is pre-configured for Cloud Run deployment with a custom Express server.
+
+---
+
+## 🔑 Admin Access
+
+Access the admin dashboard at `/login`. 
+
+> **Note:** Only authorized emails (e.g., `ahamedemran60@gmail.com`) are granted access to the dashboard. You can manage this in the `firestore.rules` and `App.tsx`.
+
+---
+
+## 📄 License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+---
+
+## 🤝 Contributing
+
+Contributions are welcome! Feel free to open an issue or submit a pull request.
+
+---
+
+**Built with ❤️ by Vortex Team**

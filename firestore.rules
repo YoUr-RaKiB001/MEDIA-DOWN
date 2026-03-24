@@ -1,0 +1,43 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // Collection: settings
+    // Document ID: config
+    // Fields:
+    //   - apiUrl: string (required) - Primary API URL
+    //   - apiKey: string (optional) - API Key
+    //   - failoverUrl: string (required) - Backup API URL
+    //   - autoFailover: bool (required) - Auto failover toggle
+    //   - updatedAt: timestamp (optional) - Last update time
+    //
+    // ===============================================================
+
+    // Helper Functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() && 
+        (request.auth.token.email == "ahamedemran60@gmail.com" && request.auth.token.email_verified == true);
+    }
+
+    // Settings Configuration
+    match /settings/config {
+      // Anyone can read the config (needed for the API to work)
+      allow read: if true;
+      
+      // Only admin can update the config
+      allow write: if isAdmin();
+    }
+
+    // Default deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

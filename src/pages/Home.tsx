@@ -26,7 +26,7 @@ export default function Home() {
   const [loading, setLoading] = useState(false);
   const [videoInfo, setVideoInfo] = useState<VideoInfo | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [selectedQuality, setSelectedQuality] = useState<string>("High Quality");
+  const [selectedQuality, setSelectedQuality] = useState<string | null>(null);
 
   const handleAnalyze = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -39,9 +39,7 @@ export default function Home() {
     try {
       const response = await axios.get(`/api/analyze?url=${encodeURIComponent(url)}`);
       setVideoInfo(response.data);
-      if (response.data.formats && response.data.formats.length > 0) {
-        setSelectedQuality(response.data.formats[0].quality);
-      }
+      setSelectedQuality(null); // Reset selection on new analysis
     } catch (err: any) {
       const errorMessage = err.response?.data?.error || "Failed to analyze URL. Please check the link and try again.";
       setError(errorMessage);
@@ -170,47 +168,87 @@ export default function Home() {
             animate={{ opacity: 1, y: 0 }}
             className="flex flex-col gap-6"
           >
-            <div className="glass-card p-0 overflow-hidden">
-              <div className="relative aspect-video">
-                <img
-                  src={videoInfo.thumbnail}
-                  alt={videoInfo.title}
-                  className="w-full h-full object-cover"
-                  referrerPolicy="no-referrer"
-                />
-                <div className="absolute bottom-3 right-3 px-2 py-1 bg-black/60 backdrop-blur-md rounded-lg text-[10px] font-bold">
-                  {videoInfo.duration}
-                </div>
-              </div>
-              <div className="p-5">
-                <h3 className="font-bold text-lg line-clamp-2 leading-tight">{videoInfo.title}</h3>
+            {/* Header Info */}
+            <div className="flex flex-col gap-2 px-2">
+              <h3 className="font-bold text-xl leading-tight text-white">{videoInfo.title}</h3>
+              <div className="flex items-center gap-2 text-slate-500 text-xs font-bold uppercase tracking-wider">
+                <span>{videoInfo.duration}</span>
+                <span>•</span>
+                <span>Ready</span>
               </div>
             </div>
 
-            <div className="flex flex-col gap-3">
-              {videoInfo.formats.map((format) => (
-                <button
-                  key={format.quality}
-                  onClick={() => setSelectedQuality(format.quality)}
-                  className={cn(
-                    "flex items-center justify-between p-4 rounded-2xl border transition-all",
-                    selectedQuality === format.quality
-                      ? "bg-purple-500/10 border-purple-500/50 text-white"
-                      : "bg-white/5 border-white/5 text-slate-400"
-                  )}
-                >
-                  <span className="font-bold">{format.quality}</span>
-                  <span className="text-xs opacity-50">{format.size}</span>
-                </button>
-              ))}
+            {/* Quality Cards */}
+            <div className="flex flex-col gap-5">
+              {videoInfo.formats.map((format, index) => {
+                const isAudio = format.quality.toLowerCase().includes('audio') || format.quality.toLowerCase().includes('mp3');
+                const isHD = format.quality.toLowerCase().includes('high') || format.quality.toLowerCase().includes('hd') || format.quality.toLowerCase().includes('1080') || format.quality.toLowerCase().includes('720');
+                
+                let icon = <Video size={20} />;
+                let title = "Standard Quality";
+                let description = "Standard definition for mobile devices";
+                let badge1 = "MP4";
+                let badge2 = "360p";
+
+                if (isAudio) {
+                  icon = <Music size={20} />;
+                  title = "Audio Only";
+                  description = "Download audio in MP3 format";
+                  badge1 = "MP3";
+                  badge2 = "320kbps";
+                } else if (isHD) {
+                  icon = <Cloud size={20} />; // Using Cloud as a placeholder for "Monitor" style icon if needed, or stick to Video
+                  title = "HD Quality";
+                  description = "High definition video";
+                  badge1 = "MP4";
+                  badge2 = "HD";
+                }
+
+                return (
+                  <div 
+                    key={index}
+                    className="bg-[#1a1b2e] rounded-[2rem] p-6 border border-white/5 flex flex-col gap-5 shadow-xl"
+                  >
+                    <div className="flex items-start gap-4">
+                      <div className="w-12 h-12 rounded-2xl bg-white/5 flex items-center justify-center text-blue-400">
+                        {icon}
+                      </div>
+                      <div className="flex flex-col gap-1">
+                        <h4 className="font-bold text-lg text-white">{title}</h4>
+                        <p className="text-xs text-slate-500 font-medium">{description}</p>
+                      </div>
+                    </div>
+
+                    <div className="flex gap-2">
+                      <div className="px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-[10px] font-bold text-blue-400 flex items-center gap-1.5">
+                        <Scissors size={12} /> {badge1}
+                      </div>
+                      <div className="px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-[10px] font-bold text-blue-400 flex items-center gap-1.5">
+                        <Video size={12} /> {badge2}
+                      </div>
+                    </div>
+
+                    <button 
+                      onClick={() => window.open(format.url, "_blank")}
+                      className="w-full py-4 rounded-2xl bg-gradient-to-r from-[#6366f1] via-[#a855f7] to-[#ec4899] text-white font-bold flex items-center justify-center gap-2 shadow-lg shadow-purple-500/20 hover:scale-[1.02] active:scale-[0.98] transition-all"
+                    >
+                      <Download size={18} />
+                      <span>{format.quality}</span>
+                    </button>
+                  </div>
+                );
+              })}
             </div>
 
-            <button 
-              onClick={handleDownload}
-              className="btn-primary py-5 text-lg glow-blue"
-            >
-              Download Now
-            </button>
+            <div className="flex justify-center mt-4">
+              <button 
+                onClick={handleClear}
+                className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-slate-500 hover:text-white transition-colors"
+              >
+                <RotateCcw size={14} />
+                Analyze Another Link
+              </button>
+            </div>
           </motion.div>
         )}
       </AnimatePresence>
