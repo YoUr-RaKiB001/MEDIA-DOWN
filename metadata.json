@@ -1,5 +1,5 @@
 {
   "name": "Vortex Downloader",
   "description": "A powerful multi-platform video downloader with a modern glassmorphism UI and a robust admin control system.",
-  "requestFramePermissions": ["notifications"]
+  "requestFramePermissions": ["notifications", "clipboard-read", "clipboard-write"]
 }

@@ -3,7 +3,10 @@ import { createServer as createViteServer } from "vite";
 import path from "path";
 import axios from "axios";
 import fs from "fs";
-import * as admin from "firebase-admin";
+import { createRequire } from "module";
+
+const require = createRequire(import.meta.url);
+const admin = require("firebase-admin");
 
 // Initialize Firebase Admin with error handling
 async function initFirebaseAdmin() {
@@ -16,7 +19,7 @@ async function initFirebaseAdmin() {
     
     const firebaseConfig = JSON.parse(fs.readFileSync(configPath, "utf8"));
 
-    if (!admin.apps.length) {
+    if (!admin.apps || admin.apps.length === 0) {
       // In this environment, we try to use applicationDefault but fallback to just projectId
       // if credentials aren't available.
       try {
@@ -33,22 +36,29 @@ async function initFirebaseAdmin() {
         console.log("Firebase Admin initialized with Project ID only");
       }
     }
-    return admin.firestore();
+    return admin.firestore(firebaseConfig.firestoreDatabaseId);
   } catch (error) {
     console.error("Critical error initializing Firebase Admin:", error);
     return null;
   }
 }
 
-let db: admin.firestore.Firestore | null = null;
+let db: any = null;
 const SETTINGS_COLLECTION = "settings";
 const CONFIG_DOC = "config";
 
 const DEFAULT_CONFIG = {
-  apiUrl: "https://nayan-video-downloader.vercel.app/alldown",
+  apiUrl: "https://imran.bro.bd/v1/alldown",
+  fbApi: "https://imran.bro.bd/v2/fb",
+  instaApi: "https://imran.bro.bd/v3/insta",
+  tiktokApi: "https://imran.bro.bd/v4/tiktok",
+  capcutApi: "https://imran.bro.bd/v5/capcut",
+  teraboxApi: "https://imran.bro.bd/v6/terabox",
+  youtubeApi: "https://imran.bro.bd/v7/youtube",
   apiKey: "",
   failoverUrl: "https://api-backup.vortex-downloader.com/v1",
-  autoFailover: true
+  autoFailover: true,
+  customRules: []
 };
 
 async function getConfig() {
@@ -124,6 +134,37 @@ async function createServer() {
     const config: any = await getConfig();
     const videoUrl = url as string;
     
+    // Smart Routing Logic
+    let targetApi = config.apiUrl;
+    const lowerUrl = videoUrl.toLowerCase();
+    
+    // 1. Check Custom Rules first (Highest Priority)
+    if (config.customRules && Array.isArray(config.customRules)) {
+      for (const rule of config.customRules) {
+        if (rule.pattern && rule.apiUrl && lowerUrl.includes(rule.pattern.toLowerCase())) {
+          targetApi = rule.apiUrl;
+          break;
+        }
+      }
+    }
+
+    // 2. Fallback to Platform-Specific Defaults if no custom rule matched
+    if (targetApi === config.apiUrl) {
+      if (lowerUrl.includes("facebook.com") || lowerUrl.includes("fb.watch")) {
+        targetApi = config.fbApi || config.apiUrl;
+      } else if (lowerUrl.includes("instagram.com")) {
+        targetApi = config.instaApi || config.apiUrl;
+      } else if (lowerUrl.includes("tiktok.com")) {
+        targetApi = config.tiktokApi || config.apiUrl;
+      } else if (lowerUrl.includes("capcut.com")) {
+        targetApi = config.capcutApi || config.apiUrl;
+      } else if (lowerUrl.includes("terabox.com") || lowerUrl.includes("teraboxapp.com")) {
+        targetApi = config.teraboxApi || config.apiUrl;
+      } else if (lowerUrl.includes("youtube.com") || lowerUrl.includes("youtu.be")) {
+        targetApi = config.youtubeApi || config.apiUrl;
+      }
+    }
+
     const tryFetch = async (apiUrl: string) => {
       const response = await axios.get(apiUrl, {
         params: { url: videoUrl, key: config.apiKey },
@@ -133,7 +174,8 @@ async function createServer() {
     };
 
     try {
-      const data = await tryFetch(config.apiUrl);
+      console.log(`Using API: ${targetApi} for URL: ${videoUrl}`);
+      const data = await tryFetch(targetApi);
       res.json(data);
     } catch (error) {
       console.error("Primary API failed:", error);

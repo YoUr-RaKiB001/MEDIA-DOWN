@@ -58,10 +58,14 @@ export default function Home() {
 
   const handlePaste = async () => {
     try {
+      if (!navigator.clipboard || !navigator.clipboard.readText) {
+        throw new Error("Clipboard API not available in this browser context.");
+      }
       const text = await navigator.clipboard.readText();
       setUrl(text);
-    } catch (err) {
+    } catch (err: any) {
       console.error("Failed to read clipboard", err);
+      setError("Clipboard access is blocked. Please paste manually (Ctrl+V or Cmd+V).");
     }
   };
 
@@ -180,64 +184,70 @@ export default function Home() {
 
             {/* Quality Cards */}
             <div className="flex flex-col gap-5">
-              {videoInfo.formats.map((format, index) => {
-                const isAudio = format.quality.toLowerCase().includes('audio') || format.quality.toLowerCase().includes('mp3');
-                const isHD = format.quality.toLowerCase().includes('high') || format.quality.toLowerCase().includes('hd') || format.quality.toLowerCase().includes('1080') || format.quality.toLowerCase().includes('720');
-                
-                let icon = <Video size={20} />;
-                let title = "Standard Quality";
-                let description = "Standard definition for mobile devices";
-                let badge1 = "MP4";
-                let badge2 = "360p";
+              {videoInfo.formats && videoInfo.formats.length > 0 ? (
+                videoInfo.formats.map((format, index) => {
+                  const isAudio = format.quality.toLowerCase().includes('audio') || format.quality.toLowerCase().includes('mp3');
+                  const isHD = format.quality.toLowerCase().includes('high') || format.quality.toLowerCase().includes('hd') || format.quality.toLowerCase().includes('1080') || format.quality.toLowerCase().includes('720');
+                  
+                  let icon = <Video size={20} />;
+                  let title = "Standard Quality";
+                  let description = "Standard definition for mobile devices";
+                  let badge1 = "MP4";
+                  let badge2 = "360p";
 
-                if (isAudio) {
-                  icon = <Music size={20} />;
-                  title = "Audio Only";
-                  description = "Download audio in MP3 format";
-                  badge1 = "MP3";
-                  badge2 = "320kbps";
-                } else if (isHD) {
-                  icon = <Cloud size={20} />; // Using Cloud as a placeholder for "Monitor" style icon if needed, or stick to Video
-                  title = "HD Quality";
-                  description = "High definition video";
-                  badge1 = "MP4";
-                  badge2 = "HD";
-                }
+                  if (isAudio) {
+                    icon = <Music size={20} />;
+                    title = "Audio Only";
+                    description = "Download audio in MP3 format";
+                    badge1 = "MP3";
+                    badge2 = "320kbps";
+                  } else if (isHD) {
+                    icon = <Cloud size={20} />; // Using Cloud as a placeholder for "Monitor" style icon if needed, or stick to Video
+                    title = "HD Quality";
+                    description = "High definition video";
+                    badge1 = "MP4";
+                    badge2 = "HD";
+                  }
 
-                return (
-                  <div 
-                    key={index}
-                    className="bg-[#1a1b2e] rounded-[2rem] p-6 border border-white/5 flex flex-col gap-5 shadow-xl"
-                  >
-                    <div className="flex items-start gap-4">
-                      <div className="w-12 h-12 rounded-2xl bg-white/5 flex items-center justify-center text-blue-400">
-                        {icon}
-                      </div>
-                      <div className="flex flex-col gap-1">
-                        <h4 className="font-bold text-lg text-white">{title}</h4>
-                        <p className="text-xs text-slate-500 font-medium">{description}</p>
-                      </div>
-                    </div>
-
-                    <div className="flex gap-2">
-                      <div className="px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-[10px] font-bold text-blue-400 flex items-center gap-1.5">
-                        <Scissors size={12} /> {badge1}
-                      </div>
-                      <div className="px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-[10px] font-bold text-blue-400 flex items-center gap-1.5">
-                        <Video size={12} /> {badge2}
-                      </div>
-                    </div>
-
-                    <button 
-                      onClick={() => window.open(format.url, "_blank")}
-                      className="w-full py-4 rounded-2xl bg-gradient-to-r from-[#6366f1] via-[#a855f7] to-[#ec4899] text-white font-bold flex items-center justify-center gap-2 shadow-lg shadow-purple-500/20 hover:scale-[1.02] active:scale-[0.98] transition-all"
+                  return (
+                    <div 
+                      key={index}
+                      className="bg-[#1a1b2e] rounded-[2rem] p-6 border border-white/5 flex flex-col gap-5 shadow-xl"
                     >
-                      <Download size={18} />
-                      <span>{format.quality}</span>
-                    </button>
-                  </div>
-                );
-              })}
+                      <div className="flex items-start gap-4">
+                        <div className="w-12 h-12 rounded-2xl bg-white/5 flex items-center justify-center text-blue-400">
+                          {icon}
+                        </div>
+                        <div className="flex flex-col gap-1">
+                          <h4 className="font-bold text-lg text-white">{title}</h4>
+                          <p className="text-xs text-slate-500 font-medium">{description}</p>
+                        </div>
+                      </div>
+
+                      <div className="flex gap-2">
+                        <div className="px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-[10px] font-bold text-blue-400 flex items-center gap-1.5">
+                          <Scissors size={12} /> {badge1}
+                        </div>
+                        <div className="px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-[10px] font-bold text-blue-400 flex items-center gap-1.5">
+                          <Video size={12} /> {badge2}
+                        </div>
+                      </div>
+
+                      <button 
+                        onClick={() => window.open(format.url, "_blank")}
+                        className="w-full py-4 rounded-2xl bg-gradient-to-r from-[#6366f1] via-[#a855f7] to-[#ec4899] text-white font-bold flex items-center justify-center gap-2 shadow-lg shadow-purple-500/20 hover:scale-[1.02] active:scale-[0.98] transition-all"
+                      >
+                        <Download size={18} />
+                        <span>{format.quality}</span>
+                      </button>
+                    </div>
+                  );
+                })
+              ) : (
+                <div className="p-8 text-center glass-card">
+                  <p className="text-slate-400">No download formats available for this video.</p>
+                </div>
+              )}
             </div>
 
             <div className="flex justify-center mt-4">

@@ -3,7 +3,7 @@ import {
   LayoutDashboard, Download, Shield, Settings, Bell, 
   TrendingUp, Activity, Globe, Zap, FileText, MoreVertical, 
   CheckCircle, XCircle, Clock, Search, Filter, ChevronDown,
-  ArrowUpRight, ArrowDownRight, Database, LogOut, Lock, Eye, EyeOff, Loader2
+  ArrowUpRight, ArrowDownRight, Database, LogOut, Lock, Eye, EyeOff, Loader2, Plus, Trash2
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "motion/react";
@@ -202,9 +202,16 @@ function DashboardView() {
 function ApiSettingsView() {
   const [config, setConfig] = useState({
     apiUrl: "",
+    fbApi: "",
+    instaApi: "",
+    tiktokApi: "",
+    capcutApi: "",
+    teraboxApi: "",
+    youtubeApi: "",
     apiKey: "",
     failoverUrl: "",
-    autoFailover: true
+    autoFailover: true,
+    customRules: [] as { pattern: string; apiUrl: string }[]
   });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -244,11 +251,49 @@ function ApiSettingsView() {
     );
   }
 
+  const apiFields = [
+    { key: "apiUrl", label: "General API (v1/alldown)" },
+    { key: "fbApi", label: "Facebook API (v2/fb)" },
+    { key: "instaApi", label: "Instagram API (v3/insta)" },
+    { key: "tiktokApi", label: "TikTok API (v4/tiktok)" },
+    { key: "capcutApi", label: "CapCut API (v5/capcut)" },
+    { key: "teraboxApi", label: "TeraBox API (v6/terabox)" },
+    { key: "youtubeApi", label: "YouTube API (v7/youtube)" },
+  ];
+
+  const addCustomRule = () => {
+    setConfig({
+      ...config,
+      customRules: [...(config.customRules || []), { pattern: "", apiUrl: "" }]
+    });
+  };
+
+  const removeCustomRule = (index: number) => {
+    const newRules = [...(config.customRules || [])];
+    newRules.splice(index, 1);
+    setConfig({ ...config, customRules: newRules });
+  };
+
+  const updateCustomRule = (index: number, field: "pattern" | "apiUrl", value: string) => {
+    const newRules = [...(config.customRules || [])];
+    newRules[index] = { ...newRules[index], [field]: value };
+    setConfig({ ...config, customRules: newRules });
+  };
+
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
       <div className="lg:col-span-2 flex flex-col gap-6">
         <div className="glass-card flex flex-col gap-6">
-          <h2 className="text-xl font-bold">API Configuration</h2>
+          <div className="flex items-center justify-between">
+            <h2 className="text-xl font-bold">API Configuration</h2>
+            <button 
+              onClick={addCustomRule}
+              className="text-primary text-xs font-bold hover:underline flex items-center gap-1"
+            >
+              <Plus size={14} />
+              <span>Add Custom Rule</span>
+            </button>
+          </div>
           <div className="flex flex-col gap-4">
             <div className="flex flex-col gap-2">
               <label className="text-xs font-bold text-slate-500 uppercase">API Key</label>
@@ -257,18 +302,61 @@ function ApiSettingsView() {
                 value={config.apiKey}
                 onChange={(e) => setConfig({ ...config, apiKey: e.target.value })}
                 className="bg-slate-900/50 border border-white/5 rounded-xl px-4 py-3 outline-none focus:border-primary/50 transition-all"
+                placeholder="Enter API key if required"
               />
             </div>
-            <div className="flex flex-col gap-2">
-              <label className="text-xs font-bold text-slate-500 uppercase">API URL</label>
-              <input 
-                type="text" 
-                value={config.apiUrl}
-                onChange={(e) => setConfig({ ...config, apiUrl: e.target.value })}
-                className="bg-slate-900/50 border border-white/5 rounded-xl px-4 py-3 outline-none focus:border-primary/50 transition-all"
-              />
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {apiFields.map((field) => (
+                <div key={field.key} className="flex flex-col gap-2">
+                  <label className="text-xs font-bold text-slate-500 uppercase">{field.label}</label>
+                  <input 
+                    type="text" 
+                    value={(config as any)[field.key]}
+                    onChange={(e) => setConfig({ ...config, [field.key]: e.target.value })}
+                    className="bg-slate-900/50 border border-white/5 rounded-xl px-4 py-3 outline-none focus:border-primary/50 transition-all text-sm"
+                    placeholder={`https://imran.bro.bd/...`}
+                  />
+                </div>
+              ))}
             </div>
-            <div className="flex flex-col gap-2">
+
+            {/* Custom Rules Section */}
+            {config.customRules && config.customRules.length > 0 && (
+              <div className="flex flex-col gap-4 mt-4 pt-4 border-t border-white/5">
+                <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider">Custom Routing Rules</h3>
+                {config.customRules.map((rule, idx) => (
+                  <div key={idx} className="flex flex-col md:flex-row gap-3 items-end">
+                    <div className="flex-1 flex flex-col gap-1.5">
+                      <label className="text-[10px] font-bold text-slate-500 uppercase">Domain Pattern (e.g. twitter.com)</label>
+                      <input 
+                        type="text" 
+                        value={rule.pattern}
+                        onChange={(e) => updateCustomRule(idx, "pattern", e.target.value)}
+                        className="bg-slate-900/50 border border-white/5 rounded-xl px-3 py-2 outline-none focus:border-primary/50 transition-all text-xs"
+                      />
+                    </div>
+                    <div className="flex-[2] flex flex-col gap-1.5">
+                      <label className="text-[10px] font-bold text-slate-500 uppercase">API URL</label>
+                      <input 
+                        type="text" 
+                        value={rule.apiUrl}
+                        onChange={(e) => updateCustomRule(idx, "apiUrl", e.target.value)}
+                        className="bg-slate-900/50 border border-white/5 rounded-xl px-3 py-2 outline-none focus:border-primary/50 transition-all text-xs"
+                      />
+                    </div>
+                    <button 
+                      onClick={() => removeCustomRule(idx)}
+                      className="p-2.5 rounded-xl bg-red-500/10 text-red-500 hover:bg-red-500/20 transition-all"
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <div className="flex flex-col gap-2 mt-2">
               <label className="text-xs font-bold text-slate-500 uppercase">Failover API URL (Backup)</label>
               <input 
                 type="text" 
