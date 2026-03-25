@@ -208,7 +208,8 @@ function ApiSettingsView() {
     capcutApi: "",
     teraboxApi: "",
     youtubeApi: "",
-    apiKey: "",
+    titleKey: "",
+    linksKey: "",
     failoverUrl: "",
     autoFailover: true,
     customRules: [] as { pattern: string; apiUrl: string }[]
@@ -294,18 +295,30 @@ function ApiSettingsView() {
               <span>Add Custom Rule</span>
             </button>
           </div>
-          <div className="flex flex-col gap-4">
-            <div className="flex flex-col gap-2">
-              <label className="text-xs font-bold text-slate-500 uppercase">API Key</label>
-              <input 
-                type="password" 
-                value={config.apiKey}
-                onChange={(e) => setConfig({ ...config, apiKey: e.target.value })}
-                className="bg-slate-900/50 border border-white/5 rounded-xl px-4 py-3 outline-none focus:border-primary/50 transition-all"
-                placeholder="Enter API key if required"
-              />
+          <div className="flex flex-col gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="flex flex-col gap-2">
+                <label className="text-xs font-bold text-slate-500 uppercase">Title Tag (JSON Key)</label>
+                <input 
+                  type="text" 
+                  value={config.titleKey}
+                  onChange={(e) => setConfig({ ...config, titleKey: e.target.value })}
+                  className="bg-slate-900/50 border border-white/5 rounded-xl px-4 py-3 outline-none focus:border-primary/50 transition-all"
+                  placeholder="e.g. title, video_title"
+                />
+              </div>
+              <div className="flex flex-col gap-2">
+                <label className="text-xs font-bold text-slate-500 uppercase">Links Tag (JSON Key)</label>
+                <input 
+                  type="text" 
+                  value={config.linksKey}
+                  onChange={(e) => setConfig({ ...config, linksKey: e.target.value })}
+                  className="bg-slate-900/50 border border-white/5 rounded-xl px-4 py-3 outline-none focus:border-primary/50 transition-all"
+                  placeholder="e.g. links, medias, formats"
+                />
+              </div>
             </div>
-            
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {apiFields.map((field) => (
                 <div key={field.key} className="flex flex-col gap-2">

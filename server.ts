@@ -55,7 +55,8 @@ const DEFAULT_CONFIG = {
   capcutApi: "https://imran.bro.bd/v5/capcut",
   teraboxApi: "https://imran.bro.bd/v6/terabox",
   youtubeApi: "https://imran.bro.bd/v7/youtube",
-  apiKey: "",
+  titleKey: "",
+  linksKey: "",
   failoverUrl: "https://api-backup.vortex-downloader.com/v1",
   autoFailover: true,
   customRules: []
@@ -167,10 +168,60 @@ async function createServer() {
 
     const tryFetch = async (apiUrl: string) => {
       const response = await axios.get(apiUrl, {
-        params: { url: videoUrl, key: config.apiKey },
-        timeout: 10000
+        params: { url: videoUrl },
+        timeout: 15000
       });
-      return response.data;
+      
+      const data = response.data;
+      
+    // Smart Normalization: Try to find title and links in various common structures
+    const findTitle = (obj: any): string => {
+      if (!obj) return "Video Download";
+      
+      // Use user-defined key if available
+      if (config.titleKey && obj[config.titleKey]) return obj[config.titleKey];
+
+      return obj.title || obj.video_title || obj.caption || obj.desc || obj.description || 
+             (obj.data && findTitle(obj.data)) || 
+             (obj.result && findTitle(obj.result)) || 
+             "Video Download";
+    };
+
+    const findFormats = (obj: any): any[] => {
+      if (!obj) return [];
+      
+      // Check for direct arrays
+      const possibleArrays = [
+        config.linksKey && obj[config.linksKey], // User defined key
+        obj.formats, obj.medias, obj.links, obj.urls, obj.video_urls,
+        (obj.data && obj.data.formats), (obj.data && obj.data.medias), (obj.data && obj.data.links),
+        (obj.result && obj.result.formats), (obj.result && obj.result.links)
+      ];
+
+        for (const arr of possibleArrays) {
+          if (Array.isArray(arr)) {
+            return arr.map(item => ({
+              quality: item.quality || item.resolution || item.type || item.format || "Download",
+              url: item.url || item.link || item.href || item.download_url || item
+            })).filter(item => typeof item.url === 'string' && item.url.startsWith('http'));
+          }
+        }
+
+        // Check for single link
+        const singleLink = obj.url || obj.link || obj.download || (obj.data && (obj.data.url || obj.data.link));
+        if (typeof singleLink === 'string') {
+          return [{ quality: "HD Quality", url: singleLink }];
+        }
+
+        return [];
+      };
+
+      return {
+        title: findTitle(data),
+        thumbnail: data.thumbnail || data.cover || (data.data && data.data.thumbnail) || "",
+        duration: data.duration || (data.data && data.data.duration) || "N/A",
+        formats: findFormats(data)
+      };
     };
 
     try {
