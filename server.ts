@@ -23,10 +23,21 @@ async function initFirebaseAdmin() {
       admin.initializeApp({
         projectId: firebaseConfig.projectId,
       });
-      console.log("Firebase Admin initialized");
+      console.log("Firebase Admin initialized for project:", firebaseConfig.projectId);
     }
     
-    // Use the default database for now to avoid initialization errors
+    const dbId = firebaseConfig.firestoreDatabaseId;
+    if (dbId) {
+      try {
+        // Use the modern getFirestore way to specify the database ID
+        const { getFirestore } = require("firebase-admin/firestore");
+        return getFirestore(admin.app(), dbId);
+      } catch (e) {
+        // Fallback for older SDK versions
+        return admin.firestore(dbId);
+      }
+    }
+    
     return admin.firestore();
   } catch (error) {
     console.error("Critical error initializing Firebase Admin:", error);
@@ -39,8 +50,8 @@ const SETTINGS_COLLECTION = "settings";
 const CONFIG_DOC = "config";
 
 const DEFAULT_CONFIG = {
-  apiUrl: "https://rakib.yt.bd/v1/alldown",
-  fbApi: "https://fahin.bro.bd/v3/facebook",
+  apiUrl: "https://imran.bro.bd/v1/alldown",
+  fbApi: "https://imran.bro.bd/v2/fb",
   instaApi: "https://imran.bro.bd/v3/insta",
   tiktokApi: "https://imran.bro.bd/v4/tiktok",
   capcutApi: "https://imran.bro.bd/v5/capcut",
@@ -48,7 +59,7 @@ const DEFAULT_CONFIG = {
   youtubeApi: "https://imran.bro.bd/v7/youtube",
   titleKey: "",
   linksKey: "",
-  failoverUrl: "https://imran.bro.bd/v1/alldown",
+  failoverUrl: "https://rakib.yt.bd/v1/alldown",
   autoFailover: true,
   customRules: []
 };

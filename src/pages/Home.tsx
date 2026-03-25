@@ -59,13 +59,14 @@ export default function Home() {
   const handlePaste = async () => {
     try {
       if (!navigator.clipboard || !navigator.clipboard.readText) {
-        throw new Error("Clipboard API not available in this browser context.");
+        throw new Error("Clipboard API not available");
       }
       const text = await navigator.clipboard.readText();
-      setUrl(text);
+      if (text) setUrl(text);
     } catch (err: any) {
       console.error("Failed to read clipboard", err);
-      setError("Clipboard access is blocked. Please paste manually (Ctrl+V or Cmd+V).");
+      setError("Clipboard access denied. Please paste the link manually.");
+      setTimeout(() => setError(null), 3000);
     }
   };
 
