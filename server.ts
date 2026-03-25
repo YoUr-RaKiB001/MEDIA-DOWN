@@ -20,23 +20,14 @@ async function initFirebaseAdmin() {
     const firebaseConfig = JSON.parse(fs.readFileSync(configPath, "utf8"));
 
     if (!admin.apps || admin.apps.length === 0) {
-      // In this environment, we try to use applicationDefault but fallback to just projectId
-      // if credentials aren't available.
-      try {
-        admin.initializeApp({
-          credential: admin.credential.applicationDefault(),
-          projectId: firebaseConfig.projectId,
-        });
-        console.log("Firebase Admin initialized with Application Default Credentials");
-      } catch (credError) {
-        console.warn("Failed to initialize with Application Default Credentials, trying without...", credError);
-        admin.initializeApp({
-          projectId: firebaseConfig.projectId,
-        });
-        console.log("Firebase Admin initialized with Project ID only");
-      }
+      admin.initializeApp({
+        projectId: firebaseConfig.projectId,
+      });
+      console.log("Firebase Admin initialized");
     }
-    return admin.firestore(firebaseConfig.firestoreDatabaseId);
+    
+    // Use the default database for now to avoid initialization errors
+    return admin.firestore();
   } catch (error) {
     console.error("Critical error initializing Firebase Admin:", error);
     return null;
@@ -48,8 +39,8 @@ const SETTINGS_COLLECTION = "settings";
 const CONFIG_DOC = "config";
 
 const DEFAULT_CONFIG = {
-  apiUrl: "https://imran.bro.bd/v1/alldown",
-  fbApi: "https://imran.bro.bd/v2/fb",
+  apiUrl: "https://rakib.yt.bd/v1/alldown",
+  fbApi: "https://fahin.bro.bd/v3/facebook",
   instaApi: "https://imran.bro.bd/v3/insta",
   tiktokApi: "https://imran.bro.bd/v4/tiktok",
   capcutApi: "https://imran.bro.bd/v5/capcut",
@@ -57,7 +48,7 @@ const DEFAULT_CONFIG = {
   youtubeApi: "https://imran.bro.bd/v7/youtube",
   titleKey: "",
   linksKey: "",
-  failoverUrl: "https://api-backup.vortex-downloader.com/v1",
+  failoverUrl: "https://imran.bro.bd/v1/alldown",
   autoFailover: true,
   customRules: []
 };
@@ -70,9 +61,18 @@ async function getConfig() {
   if (!db) return DEFAULT_CONFIG;
 
   try {
-    const doc = await db.collection(SETTINGS_COLLECTION).doc(CONFIG_DOC).get();
+    const docRef = db.collection(SETTINGS_COLLECTION).doc(CONFIG_DOC);
+    const doc = await docRef.get();
     if (doc.exists) {
       return doc.data();
+    } else {
+      // If document doesn't exist, create it with default config
+      console.log("Config document not found, creating with defaults...");
+      await docRef.set({
+        ...DEFAULT_CONFIG,
+        updatedAt: admin.firestore.FieldValue.serverTimestamp()
+      });
+      return DEFAULT_CONFIG;
     }
   } catch (error) {
     console.error("Error reading config from Firestore:", error);
@@ -190,31 +190,42 @@ async function createServer() {
     const findFormats = (obj: any): any[] => {
       if (!obj) return [];
       
-      // Check for direct arrays
+      const formats: any[] = [];
+      const dataObj = obj.data || obj.result || obj;
+
+      // Check for specific 'low' and 'high' fields (Nayan API style)
+      if (dataObj.high) formats.push({ quality: "High Quality (HD)", url: dataObj.high });
+      if (dataObj.low) formats.push({ quality: "Low Quality (SD)", url: dataObj.low });
+
+      // Check for direct arrays (Existing logic)
       const possibleArrays = [
-        config.linksKey && obj[config.linksKey], // User defined key
+        config.linksKey && obj[config.linksKey],
         obj.formats, obj.medias, obj.links, obj.urls, obj.video_urls,
         (obj.data && obj.data.formats), (obj.data && obj.data.medias), (obj.data && obj.data.links),
         (obj.result && obj.result.formats), (obj.result && obj.result.links)
       ];
 
-        for (const arr of possibleArrays) {
-          if (Array.isArray(arr)) {
-            return arr.map(item => ({
+      for (const arr of possibleArrays) {
+        if (Array.isArray(arr)) {
+          arr.forEach(item => {
+            formats.push({
               quality: item.quality || item.resolution || item.type || item.format || "Download",
               url: item.url || item.link || item.href || item.download_url || item
-            })).filter(item => typeof item.url === 'string' && item.url.startsWith('http'));
-          }
+            });
+          });
         }
+      }
 
-        // Check for single link
+      // Check for single link if nothing found yet
+      if (formats.length === 0) {
         const singleLink = obj.url || obj.link || obj.download || (obj.data && (obj.data.url || obj.data.link));
         if (typeof singleLink === 'string') {
-          return [{ quality: "HD Quality", url: singleLink }];
+          formats.push({ quality: "HD Quality", url: singleLink });
         }
+      }
 
-        return [];
-      };
+      return formats.filter(item => typeof item.url === 'string' && item.url.startsWith('http'));
+    };
 
       return {
         title: findTitle(data),
