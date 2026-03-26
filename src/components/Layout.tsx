@@ -1,7 +1,8 @@
 import React from "react";
 import { Link, useLocation } from "react-router-dom";
-import { Home, Download, Files, Settings, LayoutDashboard, Shield, Activity, FileText } from "lucide-react";
+import { Home, Download, Files, Settings, LayoutDashboard, Shield, Activity, FileText, Sun, Moon } from "lucide-react";
 import { cn } from "@/src/lib/utils";
+import { useTheme } from "../App";
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -9,6 +10,7 @@ interface LayoutProps {
 
 export default function Layout({ children }: LayoutProps) {
   const location = useLocation();
+  const { theme, toggleTheme } = useTheme();
   const isAdmin = location.pathname.startsWith("/admin");
 
   const navItems = [
@@ -62,9 +64,25 @@ export default function Layout({ children }: LayoutProps) {
   }
 
   return (
-    <div className="min-h-screen bg-background flex flex-col">
+    <div className="min-h-screen bg-background flex flex-col transition-colors duration-300">
+      {/* Top Bar */}
+      <header className="fixed top-0 left-0 right-0 h-16 flex items-center justify-between px-6 z-50 bg-background/80 backdrop-blur-md border-b border-white/5">
+        <div className="flex items-center gap-2">
+          <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center text-white">
+            <Download size={18} />
+          </div>
+          <span className="font-bold tracking-tight">Vortex DL</span>
+        </div>
+        <button 
+          onClick={toggleTheme}
+          className="w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center text-slate-400 hover:text-primary transition-all"
+        >
+          {theme === "dark" ? <Sun size={20} /> : <Moon size={20} />}
+        </button>
+      </header>
+
       {/* Main Content */}
-      <main className="flex-1 p-6 overflow-y-auto">
+      <main className="flex-1 p-6 pt-20 pb-24 overflow-y-auto">
         {children}
       </main>
 

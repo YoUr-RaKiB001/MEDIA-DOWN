@@ -13,9 +13,16 @@ interface AuthContextType {
   isAdmin: boolean;
 }
 
+interface ThemeContextType {
+  theme: "dark" | "light";
+  toggleTheme: () => void;
+}
+
 const AuthContext = createContext<AuthContextType>({ user: { email: "admin@example.com" }, loading: false, isAdmin: true });
+const ThemeContext = createContext<ThemeContextType>({ theme: "dark", toggleTheme: () => {} });
 
 export const useAuth = () => useContext(AuthContext);
+export const useTheme = () => useContext(ThemeContext);
 
 const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   return (
@@ -25,12 +32,38 @@ const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   );
 };
 
+const ThemeProvider = ({ children }: { children: React.ReactNode }) => {
+  const [theme, setTheme] = useState<"dark" | "light">(() => {
+    const saved = localStorage.getItem("theme");
+    return (saved as "dark" | "light") || "dark";
+  });
+
+  const toggleTheme = () => {
+    const newTheme = theme === "dark" ? "light" : "dark";
+    setTheme(newTheme);
+    localStorage.setItem("theme", newTheme);
+  };
+
+  useEffect(() => {
+    const root = window.document.documentElement;
+    root.classList.remove("dark", "light");
+    root.classList.add(theme);
+  }, [theme]);
+
+  return (
+    <ThemeContext.Provider value={{ theme, toggleTheme }}>
+      {children}
+    </ThemeContext.Provider>
+  );
+};
+
 export default function App() {
   return (
     <AuthProvider>
-      <Router>
-        <Layout>
-          <Routes>
+      <ThemeProvider>
+        <Router>
+          <Layout>
+            <Routes>
             <Route path="/" element={<Home />} />
             <Route path="/downloads" element={<Downloads />} />
             <Route path="/files" element={<Files />} />
@@ -42,6 +75,7 @@ export default function App() {
           </Routes>
         </Layout>
       </Router>
+      </ThemeProvider>
     </AuthProvider>
   );
 }

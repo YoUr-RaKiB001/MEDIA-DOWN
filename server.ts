@@ -62,7 +62,7 @@ async function createServer() {
     res.json({ status: "ok", config: APP_CONFIG });
   });
 
-  // API Route for video analysis
+    // API Route for video analysis
   app.get("/api/analyze", async (req, res) => {
     const { url } = req.query;
     if (!url) {
@@ -74,6 +74,7 @@ async function createServer() {
     
     // Smart Routing Logic
     let targetApi = config.apiUrl;
+    let isPlatformSpecific = false;
     const lowerUrl = videoUrl.toLowerCase();
     
     // 1. Check Custom Rules first (Highest Priority)
@@ -81,25 +82,32 @@ async function createServer() {
       for (const rule of config.customRules) {
         if (rule.pattern && rule.apiUrl && lowerUrl.includes(rule.pattern.toLowerCase())) {
           targetApi = rule.apiUrl;
+          isPlatformSpecific = true;
           break;
         }
       }
     }
 
     // 2. Fallback to Platform-Specific Defaults if no custom rule matched
-    if (targetApi === config.apiUrl) {
+    if (!isPlatformSpecific) {
       if (lowerUrl.includes("facebook.com") || lowerUrl.includes("fb.watch")) {
         targetApi = config.fbApi || config.apiUrl;
+        if (config.fbApi && config.fbApi !== config.apiUrl) isPlatformSpecific = true;
       } else if (lowerUrl.includes("instagram.com")) {
         targetApi = config.instaApi || config.apiUrl;
+        if (config.instaApi && config.instaApi !== config.apiUrl) isPlatformSpecific = true;
       } else if (lowerUrl.includes("tiktok.com")) {
         targetApi = config.tiktokApi || config.apiUrl;
+        if (config.tiktokApi && config.tiktokApi !== config.apiUrl) isPlatformSpecific = true;
       } else if (lowerUrl.includes("capcut.com")) {
         targetApi = config.capcutApi || config.apiUrl;
+        if (config.capcutApi && config.capcutApi !== config.apiUrl) isPlatformSpecific = true;
       } else if (lowerUrl.includes("terabox.com") || lowerUrl.includes("teraboxapp.com")) {
         targetApi = config.teraboxApi || config.apiUrl;
+        if (config.teraboxApi && config.teraboxApi !== config.apiUrl) isPlatformSpecific = true;
       } else if (lowerUrl.includes("youtube.com") || lowerUrl.includes("youtu.be")) {
         targetApi = config.youtubeApi || config.apiUrl;
+        if (config.youtubeApi && config.youtubeApi !== config.apiUrl) isPlatformSpecific = true;
       }
     }
 
@@ -111,58 +119,58 @@ async function createServer() {
       
       const data = response.data;
       
-    // Smart Normalization: Try to find title and links in various common structures
-    const findTitle = (obj: any): string => {
-      if (!obj) return "Video Download";
-      
-      // Use user-defined key if available
-      if (config.titleKey && obj[config.titleKey]) return obj[config.titleKey];
+      // Smart Normalization: Try to find title and links in various common structures
+      const findTitle = (obj: any): string => {
+        if (!obj) return "Video Download";
+        
+        // Use user-defined key if available
+        if (config.titleKey && obj[config.titleKey]) return obj[config.titleKey];
 
-      return obj.title || obj.video_title || obj.caption || obj.desc || obj.description || 
-             (obj.data && findTitle(obj.data)) || 
-             (obj.result && findTitle(obj.result)) || 
-             "Video Download";
-    };
+        return obj.title || obj.video_title || obj.caption || obj.desc || obj.description || 
+               (obj.data && findTitle(obj.data)) || 
+               (obj.result && findTitle(obj.result)) || 
+               "Video Download";
+      };
 
-    const findFormats = (obj: any): any[] => {
-      if (!obj) return [];
-      
-      const formats: any[] = [];
-      const dataObj = obj.data || obj.result || obj;
+      const findFormats = (obj: any): any[] => {
+        if (!obj) return [];
+        
+        const formats: any[] = [];
+        const dataObj = obj.data || obj.result || obj;
 
-      // Check for specific 'low' and 'high' fields (Nayan API style)
-      if (dataObj.high) formats.push({ quality: "High Quality (HD)", url: dataObj.high });
-      if (dataObj.low) formats.push({ quality: "Low Quality (SD)", url: dataObj.low });
+        // Check for specific 'low' and 'high' fields (Nayan API style)
+        if (dataObj.high) formats.push({ quality: "High Quality (HD)", url: dataObj.high });
+        if (dataObj.low) formats.push({ quality: "Low Quality (SD)", url: dataObj.low });
 
-      // Check for direct arrays (Existing logic)
-      const possibleArrays = [
-        config.linksKey && obj[config.linksKey],
-        obj.formats, obj.medias, obj.links, obj.urls, obj.video_urls,
-        (obj.data && obj.data.formats), (obj.data && obj.data.medias), (obj.data && obj.data.links),
-        (obj.result && obj.result.formats), (obj.result && obj.result.links)
-      ];
+        // Check for direct arrays (Existing logic)
+        const possibleArrays = [
+          config.linksKey && obj[config.linksKey],
+          obj.formats, obj.medias, obj.links, obj.urls, obj.video_urls,
+          (obj.data && obj.data.formats), (obj.data && obj.data.medias), (obj.data && obj.data.links),
+          (obj.result && obj.result.formats), (obj.result && obj.result.links)
+        ];
 
-      for (const arr of possibleArrays) {
-        if (Array.isArray(arr)) {
-          arr.forEach(item => {
-            formats.push({
-              quality: item.quality || item.resolution || item.type || item.format || "Download",
-              url: item.url || item.link || item.href || item.download_url || item
+        for (const arr of possibleArrays) {
+          if (Array.isArray(arr)) {
+            arr.forEach(item => {
+              formats.push({
+                quality: item.quality || item.resolution || item.type || item.format || "Download",
+                url: item.url || item.link || item.href || item.download_url || item
+              });
             });
-          });
+          }
         }
-      }
 
-      // Check for single link if nothing found yet
-      if (formats.length === 0) {
-        const singleLink = obj.url || obj.link || obj.download || (obj.data && (obj.data.url || obj.data.link));
-        if (typeof singleLink === 'string') {
-          formats.push({ quality: "HD Quality", url: singleLink });
+        // Check for single link if nothing found yet
+        if (formats.length === 0) {
+          const singleLink = obj.url || obj.link || obj.download || (obj.data && (obj.data.url || obj.data.link));
+          if (typeof singleLink === 'string') {
+            formats.push({ quality: "HD Quality", url: singleLink });
+          }
         }
-      }
 
-      return formats.filter(item => typeof item.url === 'string' && item.url.startsWith('http'));
-    };
+        return formats.filter(item => typeof item.url === 'string' && item.url.startsWith('http'));
+      };
 
       return {
         title: findTitle(data),
@@ -173,22 +181,35 @@ async function createServer() {
     };
 
     try {
-      console.log(`Using API: ${targetApi} for URL: ${videoUrl}`);
+      console.log(`Using Primary API: ${targetApi} for URL: ${videoUrl}`);
       const data = await tryFetch(targetApi);
       res.json(data);
     } catch (error) {
-      console.error("Primary API failed:", error);
-      if (config.autoFailover) {
+      console.error("Primary API failed:", error.message);
+      
+      // Fallback 1: If platform-specific failed, try general alldown API
+      if (isPlatformSpecific && targetApi !== config.apiUrl) {
         try {
-          console.log("Attempting failover...");
+          console.log(`Platform API failed. Attempting General API: ${config.apiUrl}`);
+          const data = await tryFetch(config.apiUrl);
+          return res.json(data);
+        } catch (genError) {
+          console.error("General API also failed:", genError.message);
+        }
+      }
+
+      // Fallback 2: Try Failover URL if enabled
+      if (config.autoFailover && config.failoverUrl) {
+        try {
+          console.log(`Attempting Failover API: ${config.failoverUrl}`);
           const data = await tryFetch(config.failoverUrl);
           res.json(data);
         } catch (failoverError) {
-          console.error("Failover API failed:", failoverError);
-          res.status(500).json({ error: "All API endpoints failed" });
+          console.error("Failover API failed:", failoverError.message);
+          res.status(500).json({ error: "All API endpoints failed. Please try again later." });
         }
       } else {
-        res.status(500).json({ error: "Primary API failed and failover is disabled" });
+        res.status(500).json({ error: "API request failed. Please check the URL or try again later." });
       }
     }
   });

@@ -16,13 +16,21 @@ import { toast } from "sonner";
 import axios from "axios";
 
 const data = [
-  { name: "Today", downloads: 0 },
-  { name: "Tue", downloads: 0 },
-  { name: "Wed", downloads: 0 },
-  { name: "Thu", downloads: 0 },
-  { name: "Fri", downloads: 0 },
-  { name: "Sat", downloads: 0 },
-  { name: "Sun", downloads: 0 },
+  { name: "Mon", downloads: 450 },
+  { name: "Tue", downloads: 620 },
+  { name: "Wed", downloads: 580 },
+  { name: "Thu", downloads: 840 },
+  { name: "Fri", downloads: 920 },
+  { name: "Sat", downloads: 1100 },
+  { name: "Sun", downloads: 980 },
+];
+
+const platformData = [
+  { name: "TikTok", value: 45 },
+  { name: "YouTube", value: 25 },
+  { name: "Facebook", value: 15 },
+  { name: "Instagram", value: 10 },
+  { name: "Other", value: 5 },
 ];
 
 interface AdminProps {
@@ -51,7 +59,7 @@ export default function Admin({ view }: AdminProps) {
     <div className="flex flex-col gap-8">
       <div className="flex items-center justify-between">
         <div className="flex flex-col gap-1">
-          <h1 className="text-3xl font-bold capitalize">{view === "reports" ? "Download Reports" : view === "api" ? "API Settings" : view}</h1>
+          <h1 className="text-3xl font-bold capitalize text-text">{view === "reports" ? "Download Reports" : view === "api" ? "API Settings" : view}</h1>
           <p className="text-slate-400">Manage your application and monitor performance.</p>
         </div>
         <div className="flex items-center gap-3">
@@ -69,11 +77,11 @@ export default function Admin({ view }: AdminProps) {
 
 function DashboardView() {
   const stats = [
-    { label: "Total Downloads", value: "1,284", change: "+12.5%", icon: Download, color: "text-red-500", bg: "bg-red-500/10" },
-    { label: "API Calls Today", value: "8,432", change: "+8.2%", icon: Zap, color: "text-blue-500", bg: "bg-blue-500/10" },
-    { label: "Storage Usage", value: "42%", change: "+2.4%", icon: Database, color: "text-amber-500", bg: "bg-amber-500/10" },
-    { label: "Server Uptime", value: "99.9%", change: "0%", icon: Activity, color: "text-green-500", bg: "bg-green-500/10" },
-    { label: "API Status", value: "Healthy", change: "Primary", icon: Globe, color: "text-purple-500", bg: "bg-purple-500/10" },
+    { label: "Total Downloads", value: "12,482", change: "+18.5%", icon: Download, color: "text-red-500", bg: "bg-red-500/10" },
+    { label: "API Calls Today", value: "2,840", change: "+12.2%", icon: Zap, color: "text-blue-500", bg: "bg-blue-500/10" },
+    { label: "Success Rate", value: "98.4%", change: "+0.5%", icon: CheckCircle, color: "text-green-500", bg: "bg-green-500/10" },
+    { label: "Avg. Speed", value: "4.2 MB/s", change: "+5.4%", icon: Activity, color: "text-purple-500", bg: "bg-purple-500/10" },
+    { label: "Active Users", value: "154", change: "+24", icon: Globe, color: "text-amber-500", bg: "bg-amber-500/10" },
   ];
 
   return (
@@ -94,15 +102,15 @@ function DashboardView() {
               </div>
               <div className={cn(
                 "flex items-center gap-1 text-xs font-bold", 
-                stat.change.startsWith("+") || stat.change === "Primary" ? "text-green-500" : "text-red-500"
+                stat.change.startsWith("+") ? "text-green-500" : "text-red-500"
               )}>
-                {stat.change.startsWith("+") ? <ArrowUpRight size={12} /> : stat.change === "Primary" ? <CheckCircle size={12} /> : <ArrowDownRight size={12} />}
+                {stat.change.startsWith("+") ? <ArrowUpRight size={12} /> : <ArrowDownRight size={12} />}
                 {stat.change}
               </div>
             </div>
             <div className="flex flex-col">
               <span className="text-slate-400 text-xs font-medium uppercase tracking-wider">{stat.label}</span>
-              <span className="text-2xl font-bold">{stat.value}</span>
+              <span className="text-2xl font-bold text-text">{stat.value}</span>
             </div>
           </motion.div>
         ))}
@@ -112,15 +120,21 @@ function DashboardView() {
         {/* Chart */}
         <div className="lg:col-span-2 glass-card flex flex-col gap-6">
           <div className="flex items-center justify-between">
-            <h2 className="text-xl font-bold">Download Statistics</h2>
+            <h2 className="text-xl font-bold text-text">Download Statistics</h2>
             <div className="flex items-center gap-2">
               <button className="text-xs font-bold px-3 py-1 rounded-lg bg-primary/10 text-primary border border-primary/20">Weekly</button>
-              <button className="text-xs font-bold px-3 py-1 rounded-lg hover:bg-glass transition-all">Monthly</button>
+              <button className="text-xs font-bold px-3 py-1 rounded-lg hover:bg-glass transition-all text-slate-400">Monthly</button>
             </div>
           </div>
           <div className="h-[300px] w-full">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={data}>
+              <AreaChart data={data}>
+                <defs>
+                  <linearGradient id="colorDownloads" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3}/>
+                    <stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/>
+                  </linearGradient>
+                </defs>
                 <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" vertical={false} />
                 <XAxis dataKey="name" stroke="#64748b" fontSize={12} tickLine={false} axisLine={false} />
                 <YAxis stroke="#64748b" fontSize={12} tickLine={false} axisLine={false} />
@@ -128,59 +142,79 @@ function DashboardView() {
                   contentStyle={{ backgroundColor: "#1e293b", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "12px" }}
                   itemStyle={{ color: "#fff" }}
                 />
-                <Bar dataKey="downloads" fill="#3b82f6" radius={[4, 4, 0, 0]} barSize={30} />
-              </BarChart>
+                <Area type="monotone" dataKey="downloads" stroke="#3b82f6" fillOpacity={1} fill="url(#colorDownloads)" strokeWidth={3} />
+              </AreaChart>
             </ResponsiveContainer>
           </div>
-          
-          {/* Platform Icons Row */}
-          <div className="flex items-center justify-around pt-4 border-t border-white/5">
-            {["fb", "insta", "tiktok", "twitter", "yt", "other"].map((p) => (
-              <div key={p} className="w-10 h-10 rounded-xl bg-slate-800 flex items-center justify-center hover:bg-slate-700 cursor-pointer transition-all">
-                <div className="w-5 h-5 bg-slate-600 rounded-sm" />
+        </div>
+
+        {/* Platform Usage */}
+        <div className="glass-card flex flex-col gap-6">
+          <h2 className="text-xl font-bold text-text">Platform Usage</h2>
+          <div className="flex flex-col gap-5">
+            {platformData.map((platform, idx) => (
+              <div key={idx} className="flex flex-col gap-2">
+                <div className="flex items-center justify-between text-sm">
+                  <span className="font-bold text-slate-300">{platform.name}</span>
+                  <span className="font-bold text-primary">{platform.value}%</span>
+                </div>
+                <div className="h-2 bg-slate-800 rounded-full overflow-hidden">
+                  <motion.div 
+                    initial={{ width: 0 }}
+                    animate={{ width: `${platform.value}%` }}
+                    transition={{ duration: 1, delay: idx * 0.1 }}
+                    className={cn(
+                      "h-full rounded-full",
+                      platform.name === "TikTok" ? "bg-pink-500" :
+                      platform.name === "YouTube" ? "bg-red-500" :
+                      platform.name === "Facebook" ? "bg-blue-500" :
+                      platform.name === "Instagram" ? "bg-purple-500" : "bg-slate-500"
+                    )}
+                  />
+                </div>
               </div>
             ))}
           </div>
         </div>
+      </div>
 
-        {/* Recent Downloads */}
-        <div className="glass-card flex flex-col gap-6">
-          <div className="flex items-center justify-between">
-            <h2 className="text-xl font-bold">Recent Downloads</h2>
-            <button className="text-primary text-xs font-bold hover:underline">View All</button>
-          </div>
-          <div className="flex flex-col gap-4">
-            {[
-              { title: "Funny Cat Video", platform: "TikTok", size: "12MB", date: "2 mins ago", url: "https://tiktok.com/v/123", color: "text-pink-500" },
-              { title: "Cooking Tutorial", platform: "YouTube", size: "45MB", date: "15 mins ago", url: "https://youtube.com/watch?v=456", color: "text-red-500" },
-              { title: "Travel Vlog", platform: "Instagram", size: "28MB", date: "1 hour ago", url: "https://instagram.com/reels/789", color: "text-purple-500" },
-              { title: "Tech Review", platform: "Twitter", size: "8MB", date: "3 hours ago", url: "https://twitter.com/i/status/012", color: "text-blue-400" },
-            ].map((download, idx) => (
-              <div key={idx} className="flex items-center gap-4 p-3 rounded-xl hover:bg-glass transition-all group">
-                <div className={cn("w-10 h-10 rounded-xl bg-slate-800 flex items-center justify-center shrink-0", download.color)}>
-                  <Globe size={20} />
-                </div>
-                <div className="flex-1 flex flex-col gap-0.5 min-w-0">
-                  <h3 className="font-bold text-sm line-clamp-1">{download.title}</h3>
-                  <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-wider text-slate-500">
-                    <span className={download.color}>{download.platform}</span>
-                    <span>•</span>
-                    <span>{download.size}</span>
-                    <span>•</span>
-                    <span>{download.date}</span>
-                  </div>
-                </div>
-                <a 
-                  href={download.url} 
-                  target="_blank" 
-                  rel="noopener noreferrer"
-                  className="p-2 rounded-lg bg-slate-800 text-slate-400 hover:text-primary hover:bg-primary/10 transition-all"
-                >
-                  <ArrowUpRight size={18} />
-                </a>
+      {/* Recent Downloads */}
+      <div className="glass-card flex flex-col gap-6">
+        <div className="flex items-center justify-between">
+          <h2 className="text-xl font-bold text-text">Recent Downloads</h2>
+          <button className="text-primary text-xs font-bold hover:underline">View All</button>
+        </div>
+        <div className="flex flex-col gap-4">
+          {[
+            { title: "Funny Cat Video", platform: "TikTok", size: "12MB", date: "2 mins ago", url: "https://tiktok.com/v/123", color: "text-pink-500" },
+            { title: "Cooking Tutorial", platform: "YouTube", size: "45MB", date: "15 mins ago", url: "https://youtube.com/watch?v=456", color: "text-red-500" },
+            { title: "Travel Vlog", platform: "Instagram", size: "28MB", date: "1 hour ago", url: "https://instagram.com/reels/789", color: "text-purple-500" },
+            { title: "Tech Review", platform: "Twitter", size: "8MB", date: "3 hours ago", url: "https://twitter.com/i/status/012", color: "text-blue-400" },
+          ].map((download, idx) => (
+            <div key={idx} className="flex items-center gap-4 p-3 rounded-xl hover:bg-glass transition-all group">
+              <div className={cn("w-10 h-10 rounded-xl bg-slate-800 flex items-center justify-center shrink-0", download.color)}>
+                <Globe size={20} />
               </div>
-            ))}
-          </div>
+              <div className="flex-1 flex flex-col gap-0.5 min-w-0">
+                <h3 className="font-bold text-sm line-clamp-1 text-text">{download.title}</h3>
+                <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                  <span className={download.color}>{download.platform}</span>
+                  <span>•</span>
+                  <span>{download.size}</span>
+                  <span>•</span>
+                  <span>{download.date}</span>
+                </div>
+              </div>
+              <a 
+                href={download.url} 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="p-2 rounded-lg bg-slate-800 text-slate-400 hover:text-primary hover:bg-primary/10 transition-all"
+              >
+                <ArrowUpRight size={18} />
+              </a>
+            </div>
+          ))}
         </div>
       </div>
     </div>
