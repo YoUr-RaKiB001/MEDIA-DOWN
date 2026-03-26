@@ -39,12 +39,23 @@ export default function Home() {
   const [selectedQuality, setSelectedQuality] = useState<string | null>(null);
   const [lastAnalyzedUrl, setLastAnalyzedUrl] = useState<string>("");
   const [history, setHistory] = useState<HistoryItem[]>([]);
+  const [notice, setNotice] = useState<{ text: string; show: boolean }>({ text: "", show: false });
 
-  // Load history
+  // Load history and notice
   useEffect(() => {
     const saved = localStorage.getItem("download_history");
     if (saved) setHistory(JSON.parse(saved));
+    fetchNotice();
   }, []);
+
+  const fetchNotice = async () => {
+    try {
+      const response = await axios.get("/api/admin/config");
+      setNotice({ text: response.data.notice, show: response.data.showNotice });
+    } catch (error) {
+      console.error("Failed to fetch notice");
+    }
+  };
 
   const saveToHistory = (info: VideoInfo, videoUrl: string) => {
     const newItem: HistoryItem = {
@@ -156,6 +167,25 @@ export default function Home() {
 
   return (
     <div className="flex flex-col gap-10 pb-24">
+      {notice.show && notice.text && (
+        <motion.div 
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="glass-card border-primary/20 bg-primary/5 py-3 px-6 flex items-center gap-4 mx-4"
+        >
+          <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary shrink-0">
+            <AlertCircle size={20} />
+          </div>
+          <p className="text-sm font-medium text-text/80">{notice.text}</p>
+          <button 
+            onClick={() => setNotice({ ...notice, show: false })}
+            className="ml-auto text-slate-500 hover:text-white transition-all"
+          >
+            <X size={18} />
+          </button>
+        </motion.div>
+      )}
+
       {/* Hero Section */}
       <div className="flex flex-col items-center text-center gap-4 px-4">
         <h2 className="text-4xl font-black leading-[1.1] tracking-tight gradient-text">

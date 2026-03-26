@@ -17,7 +17,9 @@ let APP_CONFIG = {
   linksKey: "",
   failoverUrl: "https://nayan-video-downloader.vercel.app/alldown",
   autoFailover: true,
-  customRules: []
+  customRules: [],
+  notice: "Welcome to Nayan Video Downloader! Fast & Free HD downloads.",
+  showNotice: true
 };
 
 // Load persistent config if exists

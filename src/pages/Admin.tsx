@@ -234,6 +234,8 @@ function ApiSettingsView() {
     linksKey: "",
     failoverUrl: "",
     autoFailover: true,
+    notice: "",
+    showNotice: true,
     customRules: [] as { pattern: string; apiUrl: string }[]
   });
   const [loading, setLoading] = useState(true);
@@ -306,6 +308,45 @@ function ApiSettingsView() {
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
       <div className="lg:col-span-2 flex flex-col gap-6">
+        <div className="glass-card flex flex-col gap-6">
+          <div className="flex items-center justify-between">
+            <h2 className="text-xl font-bold">Notice Management</h2>
+            <div 
+              onClick={() => setConfig({ ...config, showNotice: !config.showNotice })}
+              className={cn(
+                "w-10 h-5 rounded-full relative flex items-center px-1 cursor-pointer transition-all",
+                config.showNotice ? "bg-primary" : "bg-slate-700"
+              )}
+            >
+              <div className={cn(
+                "w-3 h-3 bg-white rounded-full transition-all",
+                config.showNotice ? "ml-auto" : "ml-0"
+              )} />
+            </div>
+          </div>
+          <div className="flex flex-col gap-4">
+            <div className="flex flex-col gap-2">
+              <label className="text-xs font-bold text-slate-500 uppercase">Notice Text</label>
+              <textarea 
+                value={config.notice}
+                onChange={(e) => setConfig({ ...config, notice: e.target.value })}
+                className="bg-slate-900/50 border border-white/5 rounded-xl px-4 py-3 outline-none focus:border-primary/50 transition-all min-h-[100px] text-sm"
+                placeholder="Enter notice message for users..."
+              />
+            </div>
+            <div className="flex items-center justify-end">
+              <button 
+                onClick={handleSave}
+                disabled={saving}
+                className="btn-primary py-2 px-6 text-sm flex items-center gap-2"
+              >
+                {saving && <Loader2 size={14} className="animate-spin" />}
+                Save Notice
+              </button>
+            </div>
+          </div>
+        </div>
+
         <div className="glass-card flex flex-col gap-6">
           <div className="flex items-center justify-between">
             <h2 className="text-xl font-bold">API Configuration</h2>
