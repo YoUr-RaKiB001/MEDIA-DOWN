@@ -32,11 +32,6 @@ interface AdminProps {
 export default function Admin({ view }: AdminProps) {
   const navigate = useNavigate();
 
-  const handleLogout = () => {
-    localStorage.removeItem("isAdminAuthenticated");
-    navigate("/login");
-  };
-
   const renderContent = () => {
     switch (view) {
       case "dashboard":
@@ -63,13 +58,6 @@ export default function Admin({ view }: AdminProps) {
           <button className="glass-card p-2 hover:bg-glass-border transition-all relative">
             <Bell size={20} className="text-slate-400" />
             <span className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full border border-background" />
-          </button>
-          <button 
-            onClick={handleLogout}
-            className="glass-card p-2 hover:bg-red-500/10 hover:text-red-500 transition-all text-slate-400 flex items-center gap-2 px-4"
-          >
-            <LogOut size={18} />
-            <span className="text-xs font-bold uppercase tracking-wider">Logout</span>
           </button>
         </div>
       </div>

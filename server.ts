@@ -3,111 +3,32 @@ import { createServer as createViteServer } from "vite";
 import path from "path";
 import axios from "axios";
 import fs from "fs";
-import { createRequire } from "module";
 
-const require = createRequire(import.meta.url);
-const admin = require("firebase-admin");
-
-// Initialize Firebase Admin with error handling
-async function initFirebaseAdmin() {
-  try {
-    const configPath = path.join(process.cwd(), "firebase-applet-config.json");
-    if (!fs.existsSync(configPath)) {
-      console.warn("Firebase config file not found. Admin features will be disabled.");
-      return null;
-    }
-    
-    const firebaseConfig = JSON.parse(fs.readFileSync(configPath, "utf8"));
-
-    if (!admin.apps || admin.apps.length === 0) {
-      admin.initializeApp({
-        projectId: firebaseConfig.projectId,
-      });
-      console.log("Firebase Admin initialized for project:", firebaseConfig.projectId);
-    }
-    
-    const dbId = firebaseConfig.firestoreDatabaseId;
-    if (dbId) {
-      try {
-        // Use the modern getFirestore way to specify the database ID
-        const { getFirestore } = require("firebase-admin/firestore");
-        return getFirestore(admin.app(), dbId);
-      } catch (e) {
-        // Fallback for older SDK versions
-        return admin.firestore(dbId);
-      }
-    }
-    
-    return admin.firestore();
-  } catch (error) {
-    console.error("Critical error initializing Firebase Admin:", error);
-    return null;
-  }
-}
-
-let db: any = null;
-const SETTINGS_COLLECTION = "settings";
-const CONFIG_DOC = "config";
-
-const DEFAULT_CONFIG = {
-  apiUrl: "https://imran.bro.bd/v1/alldown",
-  fbApi: "https://imran.bro.bd/v2/fb",
-  instaApi: "https://imran.bro.bd/v3/insta",
-  tiktokApi: "https://imran.bro.bd/v4/tiktok",
-  capcutApi: "https://imran.bro.bd/v5/capcut",
-  teraboxApi: "https://imran.bro.bd/v6/terabox",
-  youtubeApi: "https://imran.bro.bd/v7/youtube",
+// Configuration - Edit this object to change API endpoints and rules
+let APP_CONFIG = {
+  apiUrl: "https://imran.bro.bd/api/alldl",
+  fbApi: "https://imran.bro.bd/api/alldl",
+  instaApi: "https://imran.bro.bd/api/alldl",
+  tiktokApi: "https://imran.bro.bd/api/alldl",
+  capcutApi: "https://imran.bro.bd/api/alldl",
+  teraboxApi: "https://imran.bro.bd/api/alldl",
+  youtubeApi: "https://imran.bro.bd/api/alldl",
   titleKey: "",
   linksKey: "",
-  failoverUrl: "https://rakib.yt.bd/v1/alldown",
+  failoverUrl: "https://nayan-video-downloader.vercel.app/alldown",
   autoFailover: true,
   customRules: []
 };
 
-async function getConfig() {
-  if (!db) {
-    db = await initFirebaseAdmin();
+// Load persistent config if exists
+try {
+  if (fs.existsSync("./config.json")) {
+    const savedConfig = JSON.parse(fs.readFileSync("./config.json", "utf-8"));
+    APP_CONFIG = { ...APP_CONFIG, ...savedConfig };
+    console.log("Loaded persistent configuration from config.json");
   }
-  
-  if (!db) return DEFAULT_CONFIG;
-
-  try {
-    const docRef = db.collection(SETTINGS_COLLECTION).doc(CONFIG_DOC);
-    const doc = await docRef.get();
-    if (doc.exists) {
-      return doc.data();
-    } else {
-      // If document doesn't exist, create it with default config
-      console.log("Config document not found, creating with defaults...");
-      await docRef.set({
-        ...DEFAULT_CONFIG,
-        updatedAt: admin.firestore.FieldValue.serverTimestamp()
-      });
-      return DEFAULT_CONFIG;
-    }
-  } catch (error) {
-    console.error("Error reading config from Firestore:", error);
-  }
-  return DEFAULT_CONFIG;
-}
-
-async function saveConfig(config: any) {
-  if (!db) {
-    db = await initFirebaseAdmin();
-  }
-
-  if (!db) return false;
-
-  try {
-    await db.collection(SETTINGS_COLLECTION).doc(CONFIG_DOC).set({
-      ...config,
-      updatedAt: admin.firestore.FieldValue.serverTimestamp()
-    });
-    return true;
-  } catch (error) {
-    console.error("Error saving config to Firestore:", error);
-    return false;
-  }
+} catch (err) {
+  console.error("Failed to load config.json:", err);
 }
 
 async function createServer() {
@@ -122,18 +43,23 @@ async function createServer() {
     res.json({ status: "ok" });
   });
 
-  // Admin Config Endpoints
-  app.get("/api/admin/config", async (req, res) => {
-    res.json(await getConfig());
+  // Config Endpoint
+  app.get("/api/admin/config", (req, res) => {
+    res.json(APP_CONFIG);
   });
 
-  app.post("/api/admin/config", async (req, res) => {
+  app.post("/api/admin/config", (req, res) => {
     const newConfig = req.body;
-    if (await saveConfig(newConfig)) {
-      res.json({ success: true, config: newConfig });
-    } else {
-      res.status(500).json({ error: "Failed to save configuration" });
+    Object.assign(APP_CONFIG, newConfig);
+    
+    // Optional: Save to a file for persistence
+    try {
+      fs.writeFileSync("./config.json", JSON.stringify(APP_CONFIG, null, 2));
+    } catch (err) {
+      console.error("Failed to save config to file:", err);
     }
+    
+    res.json({ status: "ok", config: APP_CONFIG });
   });
 
   // API Route for video analysis
@@ -143,7 +69,7 @@ async function createServer() {
       return res.status(400).json({ error: "URL is required" });
     }
 
-    const config: any = await getConfig();
+    const config = APP_CONFIG;
     const videoUrl = url as string;
     
     // Smart Routing Logic
