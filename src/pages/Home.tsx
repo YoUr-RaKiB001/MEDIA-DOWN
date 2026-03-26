@@ -2,11 +2,16 @@ import React, { useState, useEffect, useCallback } from "react";
 import { 
   Download, Play, CheckCircle, AlertCircle, Loader2, 
   RotateCcw, Globe, Clipboard, X, Instagram, Facebook,
-  Youtube, Cloud, Scissors, Video, Music, Share2, History, Trash2
+  Youtube, Cloud, Scissors, Video, Music, Share2, History, Trash2,
+  QrCode, Copy, ExternalLink, Info
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import axios from "axios";
 import { cn } from "@/src/lib/utils";
+import { QRCodeCanvas } from "qrcode.react";
+import { toast } from "sonner";
+import { db } from "../lib/firebase";
+import { doc, onSnapshot } from "firebase/firestore";
 
 interface VideoFormat {
   quality: string;
@@ -34,28 +39,44 @@ interface HistoryItem {
 export default function Home() {
   const [url, setUrl] = useState("");
   const [loading, setLoading] = useState(false);
+  const [analysisStep, setAnalysisStep] = useState(0);
   const [videoInfo, setVideoInfo] = useState<VideoInfo | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [selectedQuality, setSelectedQuality] = useState<string | null>(null);
   const [lastAnalyzedUrl, setLastAnalyzedUrl] = useState<string>("");
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const [notice, setNotice] = useState<{ text: string; show: boolean }>({ text: "", show: false });
+  const [downloadingFormat, setDownloadingFormat] = useState<string | null>(null);
+  const [downloadProgress, setDownloadProgress] = useState(0);
+
+  const analysisSteps = [
+    "Connecting to server...",
+    "Detecting platform...",
+    "Extracting video metadata...",
+    "Finding high-quality links...",
+    "Finalizing results..."
+  ];
+
+  const fetchNotice = () => {
+    const configDoc = doc(db, "settings", "config");
+    const unsubscribe = onSnapshot(configDoc, (snapshot) => {
+      if (snapshot.exists()) {
+        const data = snapshot.data();
+        setNotice({ text: data?.notice || "", show: data?.showNotice || false });
+      }
+    }, (error) => {
+      console.error("Failed to fetch notice from Firestore", error);
+    });
+    return unsubscribe;
+  };
 
   // Load history and notice
   useEffect(() => {
     const saved = localStorage.getItem("download_history");
     if (saved) setHistory(JSON.parse(saved));
-    fetchNotice();
+    const unsubscribe = fetchNotice();
+    return () => unsubscribe();
   }, []);
-
-  const fetchNotice = async () => {
-    try {
-      const response = await axios.get("/api/admin/config");
-      setNotice({ text: response.data.notice, show: response.data.showNotice });
-    } catch (error) {
-      console.error("Failed to fetch notice");
-    }
-  };
 
   const saveToHistory = (info: VideoInfo, videoUrl: string) => {
     const newItem: HistoryItem = {
@@ -92,18 +113,31 @@ export default function Home() {
     setError(null);
     setVideoInfo(null);
     setLastAnalyzedUrl(targetUrl);
+    setAnalysisStep(0);
+
+    // Simulate analysis steps for better visual feedback
+    const stepInterval = setInterval(() => {
+      setAnalysisStep(prev => (prev < analysisSteps.length - 1 ? prev + 1 : prev));
+    }, 800);
 
     try {
       const response = await axios.get(`/api/analyze?url=${encodeURIComponent(targetUrl)}`);
-      const info = response.data;
-      setVideoInfo(info);
-      setSelectedQuality(null);
-      saveToHistory(info, targetUrl);
+      clearInterval(stepInterval);
+      setAnalysisStep(analysisSteps.length - 1);
+      
+      // Small delay to show the final step
+      setTimeout(() => {
+        const info = response.data;
+        setVideoInfo(info);
+        setSelectedQuality(null);
+        saveToHistory(info, targetUrl);
+        setLoading(false);
+      }, 500);
     } catch (err: any) {
+      clearInterval(stepInterval);
       const errorMessage = err.response?.data?.error || "Failed to analyze URL. Please check the link and try again.";
       setError(errorMessage);
       setLastAnalyzedUrl("");
-    } finally {
       setLoading(false);
     }
   }, [url, lastAnalyzedUrl, history]);
@@ -137,12 +171,27 @@ export default function Home() {
     }
   }, [url, lastAnalyzedUrl, loading, handleAnalyze]);
 
-  const handleDownload = () => {
-    if (!videoInfo) return;
-    const format = videoInfo.formats.find(f => f.quality === selectedQuality);
-    if (format) {
-      window.open(format.url, "_blank");
-    }
+  const handleDownload = (format: VideoFormat) => {
+    setDownloadingFormat(format.quality);
+    setDownloadProgress(0);
+
+    // Simulate download preparation progress
+    const interval = setInterval(() => {
+      setDownloadProgress(prev => {
+        if (prev >= 100) {
+          clearInterval(interval);
+          window.open(format.url, "_blank");
+          setTimeout(() => setDownloadingFormat(null), 1000);
+          return 100;
+        }
+        return prev + Math.floor(Math.random() * 15) + 5;
+      });
+    }, 150);
+  };
+
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text);
+    toast.success("Link copied to clipboard!");
   };
 
   const handlePaste = async () => {
@@ -255,15 +304,21 @@ export default function Home() {
         <button
           onClick={handleAnalyze}
           disabled={loading || !url}
-          className="btn-primary py-5 flex items-center justify-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed text-lg"
+          className="btn-primary py-5 flex flex-col items-center justify-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed text-lg relative overflow-hidden"
         >
           {loading ? (
-            <Loader2 className="animate-spin" size={24} />
+            <div className="flex flex-col items-center gap-2">
+              <Loader2 className="animate-spin" size={24} />
+              <span className="text-xs font-bold animate-pulse uppercase tracking-widest opacity-70">
+                {analysisSteps[analysisStep]}
+              </span>
+              <div className="absolute bottom-0 left-0 h-1 bg-white/20 transition-all duration-500" style={{ width: `${((analysisStep + 1) / analysisSteps.length) * 100}%` }} />
+            </div>
           ) : (
-            <>
+            <div className="flex items-center gap-3">
               <Download size={24} />
               <span>Download Video</span>
-            </>
+            </div>
           )}
         </button>
       </div>
@@ -297,64 +352,16 @@ export default function Home() {
             {/* Quality Cards */}
             <div className="flex flex-col gap-5">
               {videoInfo.formats && videoInfo.formats.length > 0 ? (
-                videoInfo.formats.map((format, index) => {
-                  const isAudio = format.quality.toLowerCase().includes('audio') || format.quality.toLowerCase().includes('mp3');
-                  const isHD = format.quality.toLowerCase().includes('high') || format.quality.toLowerCase().includes('hd') || format.quality.toLowerCase().includes('1080') || format.quality.toLowerCase().includes('720');
-                  
-                  let icon = <Video size={20} />;
-                  let title = "Standard Quality";
-                  let description = "Standard definition for mobile devices";
-                  let badge1 = "MP4";
-                  let badge2 = "360p";
-
-                  if (isAudio) {
-                    icon = <Music size={20} />;
-                    title = "Audio Only";
-                    description = "Download audio in MP3 format";
-                    badge1 = "MP3";
-                    badge2 = "320kbps";
-                  } else if (isHD) {
-                    icon = <Cloud size={20} />;
-                    title = "HD Quality";
-                    description = "High definition video";
-                    badge1 = "MP4";
-                    badge2 = "HD";
-                  }
-
-                  return (
-                    <div 
-                      key={index}
-                      className="bg-card rounded-[2rem] p-6 border border-white/5 flex flex-col gap-5 shadow-xl"
-                    >
-                      <div className="flex items-start gap-4">
-                        <div className="w-12 h-12 rounded-2xl bg-white/5 flex items-center justify-center text-blue-400">
-                          {icon}
-                        </div>
-                        <div className="flex flex-col gap-1">
-                          <h4 className="font-bold text-lg text-text">{title}</h4>
-                          <p className="text-xs text-slate-500 font-medium">{description}</p>
-                        </div>
-                      </div>
-
-                      <div className="flex gap-2">
-                        <div className="px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-[10px] font-bold text-blue-400 flex items-center gap-1.5">
-                          <Scissors size={12} /> {badge1}
-                        </div>
-                        <div className="px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-[10px] font-bold text-blue-400 flex items-center gap-1.5">
-                          <Video size={12} /> {badge2}
-                        </div>
-                      </div>
-
-                      <button 
-                        onClick={() => window.open(format.url, "_blank")}
-                        className="w-full py-4 rounded-2xl bg-gradient-to-r from-[#6366f1] via-[#a855f7] to-[#ec4899] text-white font-bold flex items-center justify-center gap-2 shadow-lg shadow-purple-500/20 hover:scale-[1.02] active:scale-[0.98] transition-all"
-                      >
-                        <Download size={18} />
-                        <span>{format.quality}</span>
-                      </button>
-                    </div>
-                  );
-                })
+                videoInfo.formats.map((format, index) => (
+                  <FormatCard 
+                    key={index} 
+                    format={format} 
+                    onDownload={() => handleDownload(format)}
+                    onCopy={() => copyToClipboard(format.url)}
+                    isDownloading={downloadingFormat === format.quality}
+                    progress={downloadProgress}
+                  />
+                ))
               ) : (
                 <div className="p-8 text-center glass-card">
                   <p className="text-slate-400">No download formats available for this video.</p>
@@ -432,6 +439,139 @@ export default function Home() {
           </motion.div>
         )}
       </AnimatePresence>
+    </div>
+  );
+}
+
+function FormatCard({ 
+  format, 
+  onDownload, 
+  onCopy, 
+  isDownloading, 
+  progress 
+}: { 
+  format: VideoFormat, 
+  onDownload: () => void, 
+  onCopy: () => void,
+  isDownloading: boolean,
+  progress: number,
+  key?: React.Key
+}) {
+  const [showQR, setShowQR] = useState(false);
+  
+  const isAudio = format.quality.toLowerCase().includes('audio') || format.quality.toLowerCase().includes('mp3');
+  const isHD = format.quality.toLowerCase().includes('high') || format.quality.toLowerCase().includes('hd') || format.quality.toLowerCase().includes('1080') || format.quality.toLowerCase().includes('720');
+  
+  let icon = <Video size={20} />;
+  let title = "Standard Quality";
+  let description = "Standard definition for mobile devices";
+  let badge1 = "MP4";
+  let badge2 = "360p";
+
+  if (isAudio) {
+    icon = <Music size={20} />;
+    title = "Audio Only";
+    description = "Download audio in MP3 format";
+    badge1 = "MP3";
+    badge2 = "320kbps";
+  } else if (isHD) {
+    icon = <Cloud size={20} />;
+    title = "HD Quality";
+    description = "High definition video";
+    badge1 = "MP4";
+    badge2 = "HD";
+  }
+
+  return (
+    <div className="bg-card rounded-[2rem] p-6 border border-white/5 flex flex-col gap-5 shadow-xl relative overflow-hidden">
+      {isDownloading && (
+        <div className="absolute inset-0 bg-black/80 backdrop-blur-sm z-10 flex flex-col items-center justify-center gap-4">
+          <div className="relative w-20 h-20">
+            <svg className="w-full h-full" viewBox="0 0 100 100">
+              <circle className="text-white/10 stroke-current" strokeWidth="8" fill="transparent" r="40" cx="50" cy="50" />
+              <circle 
+                className="text-primary stroke-current transition-all duration-300" 
+                strokeWidth="8" 
+                strokeDasharray={251.2} 
+                strokeDashoffset={251.2 - (251.2 * progress) / 100} 
+                strokeLinecap="round" 
+                fill="transparent" 
+                r="40" 
+                cx="50" 
+                cy="50" 
+              />
+            </svg>
+            <div className="absolute inset-0 flex items-center justify-center font-black text-sm">
+              {progress}%
+            </div>
+          </div>
+          <span className="text-xs font-bold uppercase tracking-widest text-primary animate-pulse">Preparing File...</span>
+        </div>
+      )}
+
+      <div className="flex items-start justify-between">
+        <div className="flex items-start gap-4">
+          <div className="w-12 h-12 rounded-2xl bg-white/5 flex items-center justify-center text-blue-400">
+            {icon}
+          </div>
+          <div className="flex flex-col gap-1">
+            <h4 className="font-bold text-lg text-text">{title}</h4>
+            <p className="text-xs text-slate-500 font-medium">{description}</p>
+          </div>
+        </div>
+        <div className="flex gap-2">
+          <button 
+            onClick={onCopy}
+            className="w-8 h-8 rounded-lg bg-white/5 flex items-center justify-center text-slate-400 hover:text-white transition-all"
+            title="Copy Link"
+          >
+            <Copy size={14} />
+          </button>
+          <button 
+            onClick={() => setShowQR(!showQR)}
+            className={cn(
+              "w-8 h-8 rounded-lg flex items-center justify-center transition-all",
+              showQR ? "bg-primary text-white" : "bg-white/5 text-slate-400 hover:text-white"
+            )}
+            title="Show QR Code"
+          >
+            <QrCode size={14} />
+          </button>
+        </div>
+      </div>
+
+      <AnimatePresence>
+        {showQR && (
+          <motion.div 
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            className="flex flex-col items-center gap-3 bg-white/5 rounded-2xl p-4 overflow-hidden"
+          >
+            <div className="bg-white p-2 rounded-xl">
+              <QRCodeCanvas value={format.url} size={120} />
+            </div>
+            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Scan to download on mobile</span>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <div className="flex gap-2">
+        <div className="px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-[10px] font-bold text-blue-400 flex items-center gap-1.5">
+          <Scissors size={12} /> {badge1}
+        </div>
+        <div className="px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-[10px] font-bold text-blue-400 flex items-center gap-1.5">
+          <Video size={12} /> {badge2}
+        </div>
+      </div>
+
+      <button 
+        onClick={onDownload}
+        className="w-full py-4 rounded-2xl bg-gradient-to-r from-[#6366f1] via-[#a855f7] to-[#ec4899] text-white font-bold flex items-center justify-center gap-2 shadow-lg shadow-purple-500/20 hover:scale-[1.02] active:scale-[0.98] transition-all"
+      >
+        <Download size={18} />
+        <span>{format.quality}</span>
+      </button>
     </div>
   );
 }

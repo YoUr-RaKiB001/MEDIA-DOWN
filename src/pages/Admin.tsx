@@ -3,7 +3,8 @@ import {
   LayoutDashboard, Download, Shield, Settings, Bell, 
   TrendingUp, Activity, Globe, Zap, FileText, MoreVertical, 
   CheckCircle, XCircle, Clock, Search, Filter, ChevronDown,
-  ArrowUpRight, ArrowDownRight, Database, LogOut, Lock, Eye, EyeOff, Loader2, Plus, Trash2
+  ArrowUpRight, ArrowDownRight, Database, LogOut, Lock, Eye, EyeOff, Loader2, Plus, Trash2,
+  LogIn
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "motion/react";
@@ -14,6 +15,9 @@ import {
 import { cn } from "@/src/lib/utils";
 import { toast } from "sonner";
 import axios from "axios";
+import { auth, db, loginWithGoogle, logout, OperationType, handleFirestoreError, loginWithEmail, resetPassword } from "../lib/firebase";
+import { onAuthStateChanged, User } from "firebase/auth";
+import { doc, getDoc, setDoc, onSnapshot } from "firebase/firestore";
 
 const data = [
   { name: "Mon", downloads: 450 },
@@ -39,6 +43,179 @@ interface AdminProps {
 
 export default function Admin({ view }: AdminProps) {
   const navigate = useNavigate();
+  const [user, setUser] = useState<User | null>(null);
+  const [authLoading, setAuthLoading] = useState(true);
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [loginLoading, setLoginLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+      setUser(currentUser);
+      setAuthLoading(false);
+    });
+    return () => unsubscribe();
+  }, []);
+
+  const handleGoogleLogin = async () => {
+    setLoginLoading(true);
+    try {
+      await loginWithGoogle();
+      toast.success("Logged in successfully with Google");
+    } catch (error) {
+      toast.error("Google login failed");
+    } finally {
+      setLoginLoading(false);
+    }
+  };
+
+  const handleEmailLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!email || !password) return toast.error("Please enter email and password");
+    
+    setLoginLoading(true);
+    try {
+      await loginWithEmail(email, password);
+      toast.success("Logged in successfully");
+    } catch (error: any) {
+      toast.error(error.message || "Email login failed");
+    } finally {
+      setLoginLoading(false);
+    }
+  };
+
+  const handleResetPassword = async () => {
+    if (!email) return toast.error("Please enter your email first");
+    try {
+      await resetPassword(email);
+      toast.success("Password reset email sent!");
+    } catch (error: any) {
+      toast.error(error.message || "Failed to send reset email");
+    }
+  };
+
+  const handleLogout = async () => {
+    try {
+      await logout();
+      toast.success("Logged out successfully");
+    } catch (error) {
+      toast.error("Logout failed");
+    }
+  };
+
+  if (authLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <Loader2 className="animate-spin text-primary" size={48} />
+      </div>
+    );
+  }
+
+  if (!user) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[80vh] gap-8 px-4">
+        <div className="flex flex-col items-center gap-4 text-center">
+          <div className="w-20 h-20 rounded-3xl bg-primary/10 flex items-center justify-center text-primary">
+            <Shield size={40} />
+          </div>
+          <div className="flex flex-col gap-2">
+            <h1 className="text-3xl font-bold">Admin Access</h1>
+            <p className="text-slate-400 max-w-md">Sign in to manage your application settings.</p>
+          </div>
+        </div>
+
+        <div className="glass-card w-full max-w-md p-8 flex flex-col gap-6 bg-input border-white/5">
+          <form onSubmit={handleEmailLogin} className="flex flex-col gap-5">
+            <div className="flex flex-col gap-2">
+              <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Email Address</label>
+              <input 
+                type="email" 
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="admin@example.com"
+                className="bg-black/40 border border-white/5 rounded-xl px-4 py-3 outline-none focus:border-primary/50 transition-all text-sm"
+              />
+            </div>
+            <div className="flex flex-col gap-2">
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Password</label>
+                <button 
+                  type="button"
+                  onClick={handleResetPassword}
+                  className="text-[10px] font-bold text-primary hover:underline"
+                >
+                  Forgot?
+                </button>
+              </div>
+              <div className="relative">
+                <input 
+                  type={showPassword ? "text" : "password"}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="••••••••"
+                  className="w-full bg-black/40 border border-white/5 rounded-xl px-4 py-3 outline-none focus:border-primary/50 transition-all text-sm pr-10"
+                />
+                <button 
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-white"
+                >
+                  {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                </button>
+              </div>
+            </div>
+            <button 
+              type="submit"
+              disabled={loginLoading}
+              className="btn-primary py-3 flex items-center justify-center gap-2 disabled:opacity-50"
+            >
+              {loginLoading ? <Loader2 size={18} className="animate-spin" /> : <Lock size={18} />}
+              <span>Sign In</span>
+            </button>
+          </form>
+
+          <div className="flex items-center gap-4 py-2">
+            <div className="h-[1px] flex-1 bg-white/5" />
+            <span className="text-[10px] font-bold text-slate-600 uppercase">OR</span>
+            <div className="h-[1px] flex-1 bg-white/5" />
+          </div>
+
+          <button 
+            onClick={handleGoogleLogin}
+            disabled={loginLoading}
+            className="w-full py-3 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 transition-all flex items-center justify-center gap-3 font-bold text-sm"
+          >
+            <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google" className="w-5 h-5" />
+            <span>Continue with Google</span>
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // Check if user is authorized (simple check for now, rules will handle the rest)
+  const authorizedEmail = "ahamedemran60@gmail.com";
+  if (user.email !== authorizedEmail) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[60vh] gap-6 text-center">
+        <div className="w-20 h-20 rounded-3xl bg-red-500/10 flex items-center justify-center text-red-500">
+          <XCircle size={40} />
+        </div>
+        <div className="flex flex-col gap-2">
+          <h1 className="text-3xl font-bold">Access Denied</h1>
+          <p className="text-slate-400 max-w-md">Your account ({user.email}) is not authorized to access this dashboard.</p>
+        </div>
+        <button 
+          onClick={handleLogout}
+          className="text-slate-500 hover:text-white transition-all flex items-center gap-2"
+        >
+          <LogOut size={18} />
+          <span>Sign out and try another account</span>
+        </button>
+      </div>
+    );
+  }
 
   const renderContent = () => {
     switch (view) {
@@ -63,6 +240,17 @@ export default function Admin({ view }: AdminProps) {
           <p className="text-slate-400">Manage your application and monitor performance.</p>
         </div>
         <div className="flex items-center gap-3">
+          <div className="hidden md:flex flex-col items-end mr-2">
+            <span className="text-xs font-bold text-text">{user.displayName}</span>
+            <span className="text-[10px] text-slate-500">{user.email}</span>
+          </div>
+          <button 
+            onClick={handleLogout}
+            className="glass-card p-2 hover:bg-red-500/10 hover:text-red-500 transition-all"
+            title="Logout"
+          >
+            <LogOut size={20} />
+          </button>
           <button className="glass-card p-2 hover:bg-glass-border transition-all relative">
             <Bell size={20} className="text-slate-400" />
             <span className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full border border-background" />
@@ -241,28 +429,39 @@ function ApiSettingsView() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
-  useEffect(() => {
-    fetchConfig();
-  }, []);
-
-  const fetchConfig = async () => {
-    try {
-      const response = await axios.get("/api/admin/config");
-      setConfig(response.data);
-    } catch (error) {
-      toast.error("Failed to fetch API configuration");
-    } finally {
+  const fetchConfig = () => {
+    const configDoc = doc(db, "settings", "config");
+    const unsubscribe = onSnapshot(configDoc, (snapshot) => {
+      if (snapshot.exists()) {
+        setConfig(snapshot.data() as any);
+      }
       setLoading(false);
-    }
+    }, (error) => {
+      handleFirestoreError(error, OperationType.GET, "settings/config");
+      toast.error("Failed to fetch configuration from Firestore");
+      setLoading(false);
+    });
+    return unsubscribe;
   };
+
+  useEffect(() => {
+    const unsubscribe = fetchConfig();
+    return () => unsubscribe();
+  }, []);
 
   const handleSave = async () => {
     setSaving(true);
     try {
+      const configDoc = doc(db, "settings", "config");
+      await setDoc(configDoc, config);
+      
+      // Also notify server to update its local cache if needed
       await axios.post("/api/admin/config", config);
-      toast.success("API configuration saved successfully");
+      
+      toast.success("Configuration saved to Firestore");
     } catch (error) {
-      toast.error("Failed to save API configuration");
+      handleFirestoreError(error, OperationType.WRITE, "settings/config");
+      toast.error("Failed to save configuration");
     } finally {
       setSaving(false);
     }

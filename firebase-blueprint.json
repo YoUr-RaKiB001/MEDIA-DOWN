@@ -1,0 +1,40 @@
+{
+  "entities": {
+    "AppConfig": {
+      "title": "App Configuration",
+      "description": "Global settings for the video downloader app",
+      "type": "object",
+      "properties": {
+        "apiUrl": { "type": "string" },
+        "fbApi": { "type": "string" },
+        "instaApi": { "type": "string" },
+        "tiktokApi": { "type": "string" },
+        "capcutApi": { "type": "string" },
+        "teraboxApi": { "type": "string" },
+        "youtubeApi": { "type": "string" },
+        "titleKey": { "type": "string" },
+        "linksKey": { "type": "string" },
+        "failoverUrl": { "type": "string" },
+        "autoFailover": { "type": "boolean" },
+        "notice": { "type": "string" },
+        "showNotice": { "type": "boolean" },
+        "customRules": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "pattern": { "type": "string" },
+              "apiUrl": { "type": "string" }
+            }
+          }
+        }
+      }
+    }
+  },
+  "firestore": {
+    "/settings/config": {
+      "schema": "AppConfig",
+      "description": "The main configuration document"
+    }
+  }
+}

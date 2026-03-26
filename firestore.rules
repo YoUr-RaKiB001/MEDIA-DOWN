@@ -1,0 +1,41 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    // Collection: settings
+    // Document ID: config
+    // Fields:
+    //   - apiUrl, fbApi, instaApi, tiktokApi, capcutApi, teraboxApi, youtubeApi: string
+    //   - titleKey, linksKey, failoverUrl: string
+    //   - autoFailover, showNotice: boolean
+    //   - notice: string
+    //   - customRules: array of {pattern: string, apiUrl: string}
+    // ===============================================================
+
+    // Helper Functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() && 
+        (request.auth.token.email == "ahamedemran60@gmail.com" && request.auth.token.email_verified == true);
+    }
+
+    // Settings Collection
+    match /settings/config {
+      // Allow everyone to read the configuration (needed for the app to function)
+      allow read: if true;
+      
+      // Only the admin can update the configuration
+      allow write: if isAdmin();
+    }
+
+    // Default Deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
